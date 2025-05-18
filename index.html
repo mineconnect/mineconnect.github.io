@@ -1,77 +1,498 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>MineConnect</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        /* Estilos CSS internos */
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-image: url('fondo-tecnologico.jpg');
-            background-size: cover;
-            background-attachment: fixed;
-            background-position: center;
-            color: white;
-        }
-        header {
-            background-color: rgba(0,0,0,0.7);
-            text-align: center;
-            padding: 60px 20px;
-        }
-        h1 {
-            font-size: 48px;
-            margin: 0;
-        }
-        p {
-            font-size: 18px;
-        }
-        section {
-            padding: 40px 20px;
-            max-width: 1000px;
-            margin: auto;
-            background-color: rgba(0,0,0,0.5);
-            border-radius: 10px;
-        }
-        footer {
-            background-color: rgba(0,0,0,0.8);
-            text-align: center;
-            padding: 20px;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MineConnect | Tecnología para Entornos Extremos</title>
+<style>
+  :root {
+    --verde: #0F9D58;
+    --azul: #4285F4;
+    --amarillo: #F4B400;
+    --rojo: #DB4437;
+    --gris-claro: #f4f4f4;
+    --gris-oscuro: #1c1c1c;
+    --texto-principal: #222;
+    --texto-secundario: #555;
+    --background-color: var(--gris-claro);
+    --text-color: var(--texto-principal);
+    --header-bg: linear-gradient(90deg, var(--verde), var(--azul));
+    --content-bg: #fff;
+    --footer-bg: var(--gris-oscuro);
+    --footer-color: var(--amarillo);
+    --button-bg: var(--amarillo);
+    --button-color: var(--gris-oscuro);
+  }
+
+  /* Modo oscuro facu chivo*/
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background-color: #121212;
+      --text-color: #e0e0e0;
+      --header-bg: linear-gradient(90deg, #0b5e2f, #2a56a0);
+      --content-bg: #1e1e1e;
+      --footer-bg: #111;
+      --footer-color: #f4b400;
+      --button-bg: #f4b400;
+      --button-color: #121212;
+    }
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  a {
+    color: var(--azul);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  .container {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+  header {
+    background: var(--header-bg);
+    color: white;
+    padding: 20px 5vw 10px; /* mas finito como le gusta a ella */
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    border-bottom-left-radius: 48px;
+    border-bottom-right-radius: 48px;
+    transition: background 0.3s ease;
+  }
+  header .logo-img {
+    width: 100%;
+    max-width: 320px; /* a ella le gust asi  ajuste en móviles */
+    height: auto;
+    margin: 0 auto;
+    display: block;
+    background: transparent;
+  }
+  main {
+    margin-top: 8px;
+    background: var(--content-bg);
+    border-radius: 32px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+    padding: 48px 36px;
+    position: relative;
+    z-index: 10;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .services {
+    display: flex;
+    gap: 36px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 48px;
+  }
+  .service-card {
+    flex: 1 1 320px;
+    background: linear-gradient(135deg, var(--azul), var(--verde));
+    border-radius: 24px;
+    color: white;
+    padding: 28px 24px;
+    box-shadow: 0 6px 20px rgba(15,157,88,0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.25s ease;
+    cursor: pointer;
+    position: relative;
+  }
+  .service-card:hover {
+    transform: translateY(-10px) scale(1.05);
+    box-shadow: 0 12px 36px rgba(15,157,88,0.45);
+  }
+  .service-card img {
+    width: 100%;
+    max-width: 280px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    object-fit: cover;
+    aspect-ratio: 16 / 9;
+  }
+  .service-card h3 {
+    margin: 0 0 12px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .service-card p {
+    font-size: 1.1rem;
+    text-align: center;
+    line-height: 1.5;
+    color: #e0e0e0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .mission-vision {
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 48px;
+  }
+  .mv-box {
+    flex: 1 1 400px;
+    background: #f9fafb;
+    border-left: 8px solid var(--rojo);
+    border-radius: 20px;
+    padding: 32px 28px;
+    box-shadow: 0 4px 18px rgba(219,68,55,0.15);
+    transition: box-shadow 0.3s ease, background-color 0.3s ease;
+    color: var(--text-color);
+  }
+  .mv-box:hover {
+    box-shadow: 0 8px 28px rgba(219,68,55,0.3);
+  }
+  .mv-box h2 {
+    margin-top: 0;
+    color: var(--rojo);
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 16px;
+  }
+  .mv-box p {
+    font-size: 1.15rem;
+    color: var(--texto-secundario);
+    line-height: 1.7;
+  }
+  .cta {
+    text-align: center;
+    margin-top: 40px;
+  }
+  .cta button, .cta .whatsapp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background-color: var(--button-bg);
+    border: none;
+    color: var(--button-color);
+    font-weight: 700;
+    font-size: 1.3rem;
+    padding: 18px 40px;
+    border-radius: 36px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(244,180,0,0.6);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    text-decoration: none;
+    user-select: none;
+    min-width: 160px; /* ancho para ambos  como le gusta a ella*/
+    height: 52px; /* altura fija igual para ambos puto */
+  }
+  .cta button:hover, .cta .whatsapp-btn:hover {
+    background-color: #d99d00;
+    transform: scale(1.05);
+  }
+  .whatsapp-icon {
+    width: 24px;
+    height: 24px;
+  }
+  footer {
+    background-color: var(--footer-bg);
+    color: var(--footer-color);
+    text-align: center;
+    padding: 28px 20px;
+    font-size: 1rem;
+    border-radius: 0 0 32px 32px;
+    letter-spacing: 0.5px;
+    user-select: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Modal styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(28, 28, 28, 0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal-overlay.active {
+    display: flex;
+  }
+  .modal {
+    background: var(--content-bg);
+    border-radius: 24px;
+    max-width: 720px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.25);
+    position: relative;
+    padding: 32px 36px 48px;
+    animation: modalFadeIn 0.3s ease forwards;
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  @keyframes modalFadeIn {
+    from {opacity: 0; transform: translateY(20px);}
+    to {opacity: 1; transform: translateY(0);}
+  }
+  .modal h3 {
+    margin-top: 0;
+    color: var(--azul);
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 16px;
+  }
+  .modal p {
+    font-size: 1.1rem;
+    color: var(--texto-secundario);
+    line-height: 1.6;
+  }
+  .modal img {
+    width: 100%;
+    border-radius: 16px;
+    margin: 20px 0;
+    object-fit: cover;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+  .modal .close-btn {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    background: var(--rojo);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(219,68,55,0.7);
+    transition: background-color 0.3s ease;
+  }
+  .modal .close-btn:hover {
+    background: #a8322a;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .services {
+      flex-direction: column;
+      gap: 32px;
+    }
+    .mission-vision {
+      flex-direction: column;
+      gap: 32px;
+    }
+    main {
+      margin-top: 8px;
+      padding: 36px 24px;
+    }
+  }
+  @media (max-width: 480px) {
+    header {
+      padding-left: 3vw;
+      padding-right: 3vw;
+    }
+    header .logo-img {
+      max-width: 90vw;
+      margin-bottom: 10px;
+    }
+    .services {
+      gap: 24px;
+    }
+    .service-card h3 {
+      font-size: 1.5rem;
+    }
+    .mv-box h2 {
+      font-size: 1.6rem;
+    }
+    .cta button, .cta .whatsapp-btn {
+      padding: 14px 24px;
+      font-size: 1.1rem;
+      min-width: 140px;
+      height: 48px;
+      gap: 8px;
+    }
+    .whatsapp-icon {
+      width: 20px;
+      height: 20px;
+    }
+  }
+</style>
 </head>
 <body>
-
 <header>
-    <h1>MineConnect</h1>
-    <p>Tecnología estratégica para entornos extremos</p>
+  <!-- Logo con contenedor más angosto y adaptable -->
+  <img class="logo-img" src="https://f005.backblazeb2.com/file/miNas02/WhatsApp_Image_2025-05-17_at_11.13.59_AM-removebg-preview.png" alt="Logo MineConnect" />
 </header>
 
-<section>
-    <h2>Quiénes somos</h2>
-    <p>Somos partner oficial de Hytera y proveedores de soluciones en redes, telecomunicaciones e informática para entornos industriales, mineros y marítimos.</p>
-</section>
+<main class="container" role="main">
+  <section aria-labelledby="servicios-title" class="services" >
+    <article class="service-card" tabindex="0" data-modal="modal-telecomunicaciones" role="button" aria-haspopup="dialog" aria-controls="modal-telecomunicaciones" aria-expanded="false">
+      <img
+        src="https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=800&q=80"
+        alt="Telecomunicaciones en entorno extremo"
+        loading="lazy"
+      />
+      <h3>Telecomunicaciones</h3>
+      <p>
+        Soluciones integrales para comunicación en zonas remotas y ambientes hostiles.
+      </p>
+    </article>
 
-<section>
-    <h2>Servicios</h2>
+    <article class="service-card" tabindex="0" data-modal="modal-redes" role="button" aria-haspopup="dialog" aria-controls="modal-redes" aria-expanded="false">
+      <img
+        src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80"
+        alt="Redes e internet satelital"
+        loading="lazy"
+      />
+      <h3>Redes &amp; Internet Satelital</h3>
+      <p>
+        Conectividad confiable y estable, incluso donde no llegan los proveedores tradicionales.
+      </p>
+    </article>
+
+    <article class="service-card" tabindex="0" data-modal="modal-soporte" role="button" aria-haspopup="dialog" aria-controls="modal-soporte" aria-expanded="false">
+      <img
+        src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80"
+        alt="Soporte IT y equipos"
+        loading="lazy"
+      />
+      <h3>Soporte IT &amp; Equipos</h3>
+      <p>
+        Venta y soporte de computadoras, firewalls, insumos y periféricos para empresas exigentes.
+      </p>
+    </article>
+  </section>
+
+  <section aria-labelledby="mision-vision-title" class="mission-vision" >
+    <div class="mv-box" tabindex="0">
+      <h2 id="mision-vision-title">Misión</h2>
+      <p>
+        Impulsar la conectividad y la resiliencia tecnológica de las empresas mediante soluciones sólidas, escalables y adaptadas a sus desafíos más exigentes.
+      </p>
+    </div>
+    <div class="mv-box" tabindex="0">
+      <h2>Visión</h2>
+      <p>
+        Ser referentes regionales en infraestructura IT y telecomunicaciones, acompañando a empresas que operan en condiciones extremas, desde alta montaña hasta aguas abiertas.
+      </p>
+    </div>
+  </section>
+
+  <div class="cta" role="region" aria-label="Llamado a la acción">
+    <button onclick="location.href='mailto:contacto@mineconnect.com.ar'">Contáctanos</button>
+    <a class="whatsapp-btn" href="https://wa.me/5493834327244" target="_blank" rel="noopener" aria-label="Contactar por WhatsApp">
+      <svg class="whatsapp-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#075E54" aria-hidden="true" focusable="false">
+        <path d="M20.52 3.48A11.77 11.77 0 0012 0C5.37 0 .05 5.32.05 11.88c0 2.09.55 4.14 1.6 5.95L0 24l6.34-1.65a11.9 11.9 0 005.66 1.42h.01c6.63 0 12-5.32 12-11.88 0-3.18-1.24-6.17-3.49-8.29zM12 21.5a9.5 9.5 0 01-4.84-1.4l-.35-.22-3.76 1 1-3.67-.23-.37A9.46 9.46 0 012.5 11.88c0-5.17 4.22-9.38 9.44-9.38 2.52 0 4.89.98 6.66 2.76a9.35 9.35 0 012.77 6.62c0 5.17-4.22 9.38-9.44 9.38zm5.4-7.3c-.3-.15-1.77-.87-2.05-.97-.28-.1-.48-.15-.68.15-.2.3-.77.97-.95 1.17-.18.2-.35.22-.65.07-.3-.15-1.26-.47-2.4-1.48-.89-.79-1.48-1.77-1.65-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.68-1.64-.93-2.25-.24-.58-.48-.5-.68-.51-.18-.01-.38-.01-.58-.01s-.52.07-.8.37c-.28.3-1.07 1.04-1.07 2.53 0 1.48 1.1 2.92 1.25 3.12.15.2 2.15 3.3 5.2 4.62.73.32 1.3.51 1.75.65.74.22 1.42.19 1.96.11.6-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.18-1.42-.07-.13-.27-.2-.57-.35z"/>
+      </svg>
+      WhatsApp
+    </a>
+  </div>
+</main>
+
+<!-- Modales -->
+<div class="modal-overlay" id="modal-telecomunicaciones" role="dialog" aria-modal="true" aria-labelledby="modal-telecomunicaciones-title" tabindex="-1">
+  <div class="modal">
+    <button class="close-btn" aria-label="Cerrar ventana">&times;</button>
+    <h3 id="modal-telecomunicaciones-title">Telecomunicaciones</h3>
+    <p>Ofrecemos soluciones integrales de telecomunicaciones para garantizar comunicación continua en las zonas más remotas y ambientes hostiles, incluyendo:</p>
     <ul>
-        <li>Venta de computadoras multimarcas</li>
-        <li>Radiocomunicaciones profesionales (Hytera)</li>
-        <li>Internet satelital</li>
-        <li>Redes y Firewalls</li>
+      <li>Redes privadas seguras y robustas</li>
+      <li>Radiocomunicaciones de alta fiabilidad</li>
+      <li>Monitoreo y mantenimiento 24/7</li>
     </ul>
-</section>
+    <img src="https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=1200&q=80" alt="Equipos de telecomunicaciones" loading="lazy" />
+    <img src="https://f005.backblazeb2.com/file/miNas02/fotofacu.jpeg" alt="Antenas y radiocomunicaciones" loading="lazy" />
+  </div>
+</div>
 
-<section>
-    <h2>Contacto</h2>
-    <p>📧 contacto@mineconnect.com.ar</p>
-    <p>📱 WhatsApp: +54 9 XXX XXX XXXX</p>
-</section>
+<div class="modal-overlay" id="modal-redes" role="dialog" aria-modal="true" aria-labelledby="modal-redes-title" tabindex="-1">
+  <div class="modal">
+    <button class="close-btn" aria-label="Cerrar ventana">&times;</button>
+    <h3 id="modal-redes-title">Redes &amp; Internet Satelital</h3>
+    <p>Proveemos conectividad confiable y estable, incluso en áreas donde los proveedores tradicionales no llegan, con servicios como:</p>
+    <ul>
+      <li>Internet satelital de alta velocidad</li>
+      <li>Redes privadas virtuales (VPN)</li>
+      <li>Soluciones escalables y personalizadas</li>
+    </ul>
+    <img src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80" alt="Internet satelital" loading="lazy" />
+    <img src="https://images.unsplash.com/photo-1497493292307-31c376b6e479?auto=format&fit=crop&w=1200&q=80" alt="Redes de comunicación" loading="lazy" />
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-soporte" role="dialog" aria-modal="true" aria-labelledby="modal-soporte-title" tabindex="-1">
+  <div class="modal">
+    <button class="close-btn" aria-label="Cerrar ventana">&times;</button>
+    <h3 id="modal-soporte-title">Soporte IT &amp; Equipos</h3>
+    <p>Comercializamos y damos soporte técnico especializado para:</p>
+    <ul>
+      <li>Computadoras multimarcas</li>
+      <li>Firewalls y seguridad informática</li>
+      <li>Insumos y periféricos de alta calidad</li>
+    </ul>
+    <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80" alt="Soporte técnico IT" loading="lazy" />
+    <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80" alt="Equipos informáticos" loading="lazy" />
+  </div>
+</div>
 
 <footer>
-    &copy; 2025 MineConnect - Todos los derechos reservados.
+  &copy; 2025 MineConnect. Todos los derechos reservados.
 </footer>
 
+<script>
+  document.querySelectorAll('.service-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const modalId = card.getAttribute('data-modal');
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.add('active');
+        modal.setAttribute('aria-expanded', 'true');
+        modal.focus();
+      }
+    });
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(modal => {
+    const closeBtn = modal.querySelector('.close-btn');
+    closeBtn.addEventListener('click', () => {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-expanded', 'false');
+    });
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.active').forEach(modal => {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+</script>
 </body>
 </html>

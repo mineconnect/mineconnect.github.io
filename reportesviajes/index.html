@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Reportes de viajes — MineConnect</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="/reportesviajes/">
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:840px;margin:24px auto;padding:0 16px}
+    h1{margin:.2rem 0 .6rem} form{display:grid;gap:12px}
+    fieldset{border:1px solid #ddd;padding:12px;border-radius:8px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:grid;gap:6px}
+    input,textarea,button{font:inherit;padding:10px;border:1px solid #ccc;border-radius:8px}
+    button{cursor:pointer;border:0}
+    .primary{background:#111;color:#fff}
+    .msg{padding:10px;border-radius:8px;display:none}
+    .ok{background:#e7f7ee} .err{background:#fde8e8}
+    .small{font-size:.92rem;color:#555}
+  </style>
+</head>
+<body>
+  <h1>Reportes de viajes</h1>
+  <p class="small">Los datos se almacenan en Supabase con RLS (solo insert anónimo permitido).</p>
+
+  <form id="f" novalidate>
+    <fieldset>
+      <legend>Datos del viaje</legend>
+      <div class="row">
+        <label>Fecha <input type="date" name="fecha" required></label>
+        <label>Chofer <input type="text" name="chofer" required></label>
+      </div>
+      <div class="row">
+        <label>Vehículo / Patente <input type="text" name="vehiculo" required></label>
+        <label>Pasajeros <input type="number" name="pasajeros" min="0" step="1" value="0"></label>
+      </div>
+      <div class="row">
+        <label>Origen <input type="text" name="origen" required></label>
+        <label>Destino <input type="text" name="destino" required></label>
+      </div>
+      <div class="row">
+        <label>KM inicio <input type="number" name="kmInicio" min="0" step="0.1" required></label>
+        <label>KM fin <input type="number" name="kmFin" min="0" step="0.1" required></label>
+      </div>
+      <div class="row">
+        <label>Combustible (L o $) <input type="text" name="combustible" placeholder="35 L / $25.000"></label>
+        <label>Peajes ($) <input type="number" name="peajes" min="0" step="0.01" value="0"></label>
+      </div>
+      <label>Observaciones <textarea name="observaciones" rows="3" placeholder="Incidencias, desvíos, etc."></textarea></label>
+      <label>Adjuntos (URLs, separadas por coma)
+        <input type="text" name="adjuntos" placeholder="https://... , https://...">
+      </label>
+    </fieldset>
+
+    <!-- honeypot anti-bots -->
+    <input type="text" name="empresa" style="display:none">
+
+    <div class="row">
+      <button class="primary" type="submit">Enviar reporte</button>
+      <button type="reset">Limpiar</button>
+    </div>
+
+    <div id="ok" class="msg ok">¡Reporte enviado! ✅</div>
+    <div id="err" class="msg err">Hubo un error. Intenta nuevamente.</div>
+  </form>
+
+  <script>
+    const SUPABASE_URL = 'https://ztzzllzohdvknijxvorl.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0enpsbHpvaGR2a25panh2b3JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NTI1MjAsImV4cCI6MjA3MDQyODUyMH0.0ty2Qq9K9USUvdCjq8lw-KHTYkTGCESQHMMjuYAPJJ8';
+
+    const { createClient } = window.supabase;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const f = document.getElementById('f');
+    const ok = document.getElementById('ok');
+    const err = document.getElementById('err');
+
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault(); ok.style.display='none'; err.style.display='none';
+
+      const form = new FormData(f);
+      if ((form.get('empresa')||'').trim() !== '') return; // honeypot
+
+      const payload = {
+        fecha: form.get('fecha'),
+        chofer: (form.get('chofer')||'').trim(),
+        vehiculo: (form.get('vehiculo')||'').trim(),
+        pasajeros: Number(form.get('pasajeros')||0),
+        origen: (form.get('origen')||'').trim(),
+        destino: (form.get('destino')||'').trim(),
+        km_inicio: Number(form.get('kmInicio')),
+        km_fin: Number(form.get('kmFin')),
+        combustible: (form.get('combustible')||'').trim(),
+        peajes: Number(form.get('peajes')||0),
+        observaciones: (form.get('observaciones')||'').trim(),
+        adjuntos: (form.get('adjuntos')||'').trim()
+      };
+
+      if (!payload.fecha || !payload.chofer || !payload.vehiculo || !payload.origen || !payload.destino) {
+        err.textContent = 'Faltan campos obligatorios.'; err.style.display='block'; return;
+      }
+      if (payload.km_fin < payload.km_inicio) {
+        err.textContent = 'KM fin no puede ser menor que KM inicio.'; err.style.display='block'; return;
+      }
+
+      const { error } = await supabase.from('viajes').insert(payload);
+      if (error) { err.textContent = 'Error: ' + error.message; err.style.display='block'; return; }
+      ok.style.display='block'; f.reset();
+    });
+  </script>
+</body>
+</html>

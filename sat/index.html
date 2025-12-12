@@ -42,8 +42,8 @@
         const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`;
         const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcXJjd2hveml3YmtuZmVhYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTYwMTcsImV4cCI6MjA3NDQ5MjAxN30.8RZvoVhHgotjAoFK959sIb3Dhnfssf9FbnOdSfSk6pQ";
 
-        // Función agresiva para ocultar botones de administración
-        function bloquearVistaConductor() {
+        function ejecutarBloqueo() {
+            // Textos que SOLO el conductor tiene prohibido ver
             const textosProhibidos = [
                 "mis conductores", 
                 "historial de viajes", 
@@ -56,11 +56,9 @@
             
             elementos.forEach(el => {
                 const texto = (el.innerText || "").toLowerCase().trim();
-                
-                // Si el texto del botón contiene alguna palabra prohibida, lo borramos
+                // Si encontramos una palabra prohibida, ocultamos
                 if (textosProhibidos.some(prohibido => texto.includes(prohibido))) {
                     el.style.display = "none";
-                    // Borrar padre si es necesario (para limpiar el menú)
                     if(el.parentElement && el.parentElement.tagName === 'A') {
                         el.parentElement.style.display = "none";
                     }
@@ -80,7 +78,7 @@
                 const userId = session.user.id;
                 const token = session.access_token;
 
-                // Consultar rol real en la base de datos
+                // Verificar rol en BD
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role`, {
                     headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${token}` }
                 });
@@ -88,27 +86,36 @@
                 const data = await response.json();
 
                 if (data && data.length > 0) {
-                    // Limpiamos el rol (minúsculas y sin espacios)
-                    const rolDetectado = (data[0].role || "").toLowerCase().trim();
+                    const rol = (data[0].role || "").toLowerCase().trim();
+                    console.log("SAT DEBUG: Rol detectado ->", rol);
+
+                    // 1. SALVOCONDUCTO PARA JEFES (Lista Blanca)
+                    // Si el rol es cualquiera de estos, EL SCRIPT SE DETIENE AQUÍ.
+                    // No ejecuta ningún bloqueo.
+                    const jefes = ['super_admin', 'coordinador', 'admin', 'company_admin', 'owner'];
                     
-                    console.log("SAT DEBUG: Tu rol es ->", rolDetectado);
+                    if (jefes.includes(rol)) {
+                        console.log("🛡️ Usuario VIP detectado. NO se aplican restricciones.");
+                        return; // ¡IMPORTANTE! Aquí se sale y no borra nada.
+                    }
 
-                    // === LISTA NEGRA ===
-                    // Solo bloqueamos si el rol coincide con alguno de estos:
-                    const rolesBloqueados = ['conductor', 'driver', 'chofer', 'user'];
+                    // 2. BLOQUEO ESPECÍFICO PARA CONDUCTORES
+                    // Solo si no es jefe y ES conductor, bloqueamos.
+                    const conductores = ['conductor', 'driver', 'chofer'];
 
-                    if (rolesBloqueados.includes(rolDetectado)) {
-                        console.log("⛔ Bloqueando vista administrativa para:", rolDetectado);
-                        setInterval(bloquearVistaConductor, 500); // Revisión continua
-                        bloquearVistaConductor();
+                    if (conductores.includes(rol)) {
+                        console.log("⛔ Rol Conductor verificado. Aplicando filtros visuales...");
+                        setInterval(ejecutarBloqueo, 500);
+                        ejecutarBloqueo();
                     } else {
-                        console.log("✅ Acceso administrativo permitido para:", rolDetectado);
-                        // No hacemos nada, así que el Coordinador/Admin ve todo por defecto.
+                         // Si el rol no se reconoce (ej: es null), por seguridad NO bloqueamos al Admin.
+                         // Pero si quieres que por defecto se bloquee a desconocidos, avísame.
+                         console.log("⚠️ Rol desconocido ("+rol+"). Se asume permiso estándar.");
                     }
                 }
             }
         } catch (e) {
-            console.error("Error en script de seguridad:", e);
+            console.error("Error script seguridad:", e);
         }
       })();
     </script>

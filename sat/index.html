@@ -43,7 +43,7 @@
         const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcXJjd2hveml3YmtuZmVhYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTYwMTcsImV4cCI6MjA3NDQ5MjAxN30.8RZvoVhHgotjAoFK959sIb3Dhnfssf9FbnOdSfSk6pQ";
 
         function ejecutarBloqueo() {
-            // Textos que SOLO el conductor tiene prohibido ver
+            // Textos exactos a ocultar
             const textosProhibidos = [
                 "mis conductores", 
                 "historial de viajes", 
@@ -56,7 +56,7 @@
             
             elementos.forEach(el => {
                 const texto = (el.innerText || "").toLowerCase().trim();
-                // Si encontramos una palabra prohibida, ocultamos
+                // Si el texto coincide con algo prohibido, lo borramos
                 if (textosProhibidos.some(prohibido => texto.includes(prohibido))) {
                     el.style.display = "none";
                     if(el.parentElement && el.parentElement.tagName === 'A') {
@@ -78,7 +78,6 @@
                 const userId = session.user.id;
                 const token = session.access_token;
 
-                // Verificar rol en BD
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role`, {
                     headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${token}` }
                 });
@@ -89,29 +88,19 @@
                     const rol = (data[0].role || "").toLowerCase().trim();
                     console.log("SAT DEBUG: Rol detectado ->", rol);
 
-                    // 1. SALVOCONDUCTO PARA JEFES (Lista Blanca)
-                    // Si el rol es cualquiera de estos, EL SCRIPT SE DETIENE AQUÍ.
-                    // No ejecuta ningún bloqueo.
-                    const jefes = ['super_admin', 'coordinador', 'admin', 'company_admin', 'owner'];
+                    // ==========================================
+                    //  CONDICIÓN ÚNICA Y EXCLUYENTE
+                    // ==========================================
+                    // Solo entramos aquí si el rol es explícitamente "conductor" o variantes.
+                    // Si el rol es "admin", "super_admin", etc., el código salta este bloque
+                    // y no hace absolutamente nada.
                     
-                    if (jefes.includes(rol)) {
-                        console.log("🛡️ Usuario VIP detectado. NO se aplican restricciones.");
-                        return; // ¡IMPORTANTE! Aquí se sale y no borra nada.
-                    }
-
-                    // 2. BLOQUEO ESPECÍFICO PARA CONDUCTORES
-                    // Solo si no es jefe y ES conductor, bloqueamos.
-                    const conductores = ['conductor', 'driver', 'chofer'];
-
-                    if (conductores.includes(rol)) {
-                        console.log("⛔ Rol Conductor verificado. Aplicando filtros visuales...");
+                    if (rol === 'conductor' || rol === 'driver' || rol === 'chofer') {
+                        console.log("⛔ Es un conductor. Ocultando botones...");
                         setInterval(ejecutarBloqueo, 500);
                         ejecutarBloqueo();
-                    } else {
-                         // Si el rol no se reconoce (ej: es null), por seguridad NO bloqueamos al Admin.
-                         // Pero si quieres que por defecto se bloquee a desconocidos, avísame.
-                         console.log("⚠️ Rol desconocido ("+rol+"). Se asume permiso estándar.");
-                    }
+                    } 
+                    // No hay 'else'. Si no es conductor, no se toca nada.
                 }
             }
         } catch (e) {

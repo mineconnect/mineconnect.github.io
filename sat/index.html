@@ -10,21 +10,10 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""/>
     <style>
-      /* Custom scrollbar for a professional feel */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f5f9;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #94a3b8;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
-      }
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #f1f5f9; }
+      ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 
   <script type="importmap">
@@ -53,27 +42,28 @@
         const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`;
         const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcXJjd2hveml3YmtuZmVhYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTYwMTcsImV4cCI6MjA3NDQ5MjAxN30.8RZvoVhHgotjAoFK959sIb3Dhnfssf9FbnOdSfSk6pQ";
 
-        // Función que borra los botones (SOLO se activará si es conductor)
-        function aplicarRestriccionesConductor() {
-            // Buscamos botones, enlaces y divs que actúan como botones
-            const elementos = document.querySelectorAll('button, a, div[role="button"], span');
+        // Función agresiva para ocultar botones de administración
+        function bloquearVistaConductor() {
+            const textosProhibidos = [
+                "mis conductores", 
+                "historial de viajes", 
+                "usuarios y roles", 
+                "empresas (clientes)",
+                "crear nuevo usuario"
+            ];
+
+            const elementos = document.querySelectorAll('button, a, div[role="button"], span, h3');
             
             elementos.forEach(el => {
                 const texto = (el.innerText || "").toLowerCase().trim();
                 
-                // Lista exacta de lo que NO debe ver el conductor
-                if (texto.includes("mis conductores") || 
-                    texto.includes("historial de viajes") || 
-                    texto === "usuarios y roles" ||
-                    texto === "empresas (clientes)") {
-                    
-                    el.style.display = "none"; // Ocultar elemento
-                    
-                    // Ocultar también el contenedor padre si es un enlace de menú
+                // Si el texto del botón contiene alguna palabra prohibida, lo borramos
+                if (textosProhibidos.some(prohibido => texto.includes(prohibido))) {
+                    el.style.display = "none";
+                    // Borrar padre si es necesario (para limpiar el menú)
                     if(el.parentElement && el.parentElement.tagName === 'A') {
                         el.parentElement.style.display = "none";
                     }
-                    // Ocultar botones contenedores
                     if(el.closest('button')) {
                         el.closest('button').style.display = "none";
                     }
@@ -90,35 +80,35 @@
                 const userId = session.user.id;
                 const token = session.access_token;
 
-                // Consultamos el rol
+                // Consultar rol real en la base de datos
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role`, {
-                    headers: {
-                        'apikey': API_KEY,
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${token}` }
                 });
                 
                 const data = await response.json();
 
                 if (data && data.length > 0) {
-                    const rolUsuario = (data[0].role || "").toLowerCase().trim();
-                    console.log("SAT Info: Usuario conectado con rol:", rolUsuario);
+                    // Limpiamos el rol (minúsculas y sin espacios)
+                    const rolDetectado = (data[0].role || "").toLowerCase().trim();
+                    
+                    console.log("SAT DEBUG: Tu rol es ->", rolDetectado);
 
-                    // --- CAMBIO CLAVE AQUÍ ---
-                    // Solo bloqueamos si el rol es EXPLICITAMENTE "conductor"
-                    if (rolUsuario === 'conductor') {
-                        console.log("👮‍♂️ Modo Conductor detectado: Aplicando restricciones visuales.");
-                        // Ejecutamos varias veces para asegurar que al cargar la página se borren
-                        aplicarRestriccionesConductor();
-                        setInterval(aplicarRestriccionesConductor, 500);
+                    // === LISTA NEGRA ===
+                    // Solo bloqueamos si el rol coincide con alguno de estos:
+                    const rolesBloqueados = ['conductor', 'driver', 'chofer', 'user'];
+
+                    if (rolesBloqueados.includes(rolDetectado)) {
+                        console.log("⛔ Bloqueando vista administrativa para:", rolDetectado);
+                        setInterval(bloquearVistaConductor, 500); // Revisión continua
+                        bloquearVistaConductor();
                     } else {
-                        // Si es Admin, Super Admin, Coordinador, Batman, etc., NO HACEMOS NADA.
-                        console.log("✅ Modo Administrativo: Acceso total concedido.");
+                        console.log("✅ Acceso administrativo permitido para:", rolDetectado);
+                        // No hacemos nada, así que el Coordinador/Admin ve todo por defecto.
                     }
                 }
             }
         } catch (e) {
-            console.error("Error verificando usuario:", e);
+            console.error("Error en script de seguridad:", e);
         }
       })();
     </script>

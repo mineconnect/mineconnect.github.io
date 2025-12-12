@@ -53,23 +53,37 @@
         const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`;
         const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcXJjd2hveml3YmtuZmVhYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTYwMTcsImV4cCI6MjA3NDQ5MjAxN30.8RZvoVhHgotjAoFK959sIb3Dhnfssf9FbnOdSfSk6pQ";
 
-        // Función para ocultar botones específicos
+        // Función que borra los botones
         function ocultarBotones() {
-            const elementos = document.querySelectorAll('button, a, div[role="button"]');
+            // Buscamos cualquier elemento clickeable
+            const elementos = document.querySelectorAll('button, a, div[role="button"], span');
+            
             elementos.forEach(el => {
+                // Convertimos el texto a minúsculas y quitamos espacios extra para comparar bien
                 const texto = (el.innerText || "").toLowerCase().trim();
-                if (texto === "mis conductores" || texto === "historial de viajes") {
+                
+                // Lista de textos prohibidos para el conductor
+                if (texto.includes("mis conductores") || 
+                    texto.includes("historial de viajes") || 
+                    texto === "usuarios y roles" ||
+                    texto === "empresas (clientes)") {
+                    
+                    // Ocultar el elemento
                     el.style.display = "none";
-                    // Intentar ocultar el contenedor padre si es un enlace de sidebar
+                    
+                    // Truco: A veces el botón está dentro de un contenedor padre (el link real)
+                    // Si el padre es un enlace <a>, ocultarlo también.
                     if(el.parentElement && el.parentElement.tagName === 'A') {
                         el.parentElement.style.display = "none";
+                    }
+                    if(el.closest('button')) {
+                        el.closest('button').style.display = "none";
                     }
                 }
             });
         }
 
         try {
-            // Buscar sesión de Supabase en el navegador
             const sessionKey = `sb-${PROJECT_REF}-auth-token`;
             const sessionStr = localStorage.getItem(sessionKey);
             
@@ -78,7 +92,7 @@
                 const userId = session.user.id;
                 const token = session.access_token;
 
-                // Consultar a la base de datos el rol del usuario actual
+                // Consultamos el rol
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role`, {
                     headers: {
                         'apikey': API_KEY,
@@ -87,17 +101,28 @@
                 });
                 
                 const data = await response.json();
-                
-                // Si es conductor, activar el ocultamiento
-                if (data && data.length > 0 && data[0].role === 'conductor') {
-                    console.log("👮‍♂️ Modo Conductor detectado: Ocultando opciones administrativas.");
-                    // Ejecutar inmediatamente y luego periódicamente para manejar cambios de página
-                    ocultarBotones();
-                    setInterval(ocultarBotones, 500); 
+
+                if (data && data.length > 0) {
+                    // Normalizamos el rol (todo a minúsculas y sin espacios) para evitar errores
+                    const rolUsuario = (data[0].role || "").toLowerCase().trim();
+                    
+                    console.log("🕵️‍♂️ DEBUG SAT - Rol detectado:", rolUsuario);
+
+                    // LISTA BLANCA: Solo estos roles pueden ver los botones
+                    const rolesJefes = ['coordinador', 'super_admin', 'company_admin', 'admin'];
+
+                    // Si el rol NO está en la lista de jefes, activamos el bloqueo
+                    if (!rolesJefes.includes(rolUsuario)) {
+                        console.log("🔒 Usuario restringido (Conductor). Ocultando menús...");
+                        setInterval(ocultarBotones, 300); // Revisar cada 0.3 segundos
+                        ocultarBotones();
+                    } else {
+                        console.log("✅ Acceso administrativo permitido.");
+                    }
                 }
             }
         } catch (e) {
-            console.error("Error verificando permisos de usuario:", e);
+            console.error("Error en parche de seguridad:", e);
         }
       })();
     </script>

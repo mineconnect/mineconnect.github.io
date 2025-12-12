@@ -55,6 +55,7 @@
 
         // Función que borra los botones (SOLO se activará si es conductor)
         function aplicarRestriccionesConductor() {
+            // Buscamos botones, enlaces y divs que actúan como botones
             const elementos = document.querySelectorAll('button, a, div[role="button"], span');
             
             elementos.forEach(el => {
@@ -66,7 +67,7 @@
                     texto === "usuarios y roles" ||
                     texto === "empresas (clientes)") {
                     
-                    el.style.display = "none"; // Ocultar
+                    el.style.display = "none"; // Ocultar elemento
                     
                     // Ocultar también el contenedor padre si es un enlace de menú
                     if(el.parentElement && el.parentElement.tagName === 'A') {
@@ -103,15 +104,16 @@
                     const rolUsuario = (data[0].role || "").toLowerCase().trim();
                     console.log("SAT Info: Usuario conectado con rol:", rolUsuario);
 
-                    // --- AQUÍ ESTÁ EL CAMBIO ---
-                    // Solo bloqueamos si el rol contiene la palabra "conductor"
+                    // --- CAMBIO CLAVE AQUÍ ---
+                    // Solo bloqueamos si el rol es EXPLICITAMENTE "conductor"
                     if (rolUsuario === 'conductor') {
-                        console.log("Modo Conductor: Aplicando restricciones visuales.");
-                        setInterval(aplicarRestriccionesConductor, 300);
+                        console.log("👮‍♂️ Modo Conductor detectado: Aplicando restricciones visuales.");
+                        // Ejecutamos varias veces para asegurar que al cargar la página se borren
                         aplicarRestriccionesConductor();
+                        setInterval(aplicarRestriccionesConductor, 500);
                     } else {
-                        // Si es Admin, Super Admin, Coordinador, etc., NO HACEMOS NADA.
-                        console.log("Modo Administrativo: Acceso total concedido.");
+                        // Si es Admin, Super Admin, Coordinador, Batman, etc., NO HACEMOS NADA.
+                        console.log("✅ Modo Administrativo: Acceso total concedido.");
                     }
                 }
             }

@@ -5,12 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/sat/vite.svg" />
     <title>MineConnect SAT</title>
-    <!-- Tailwind CDN for quick styling (or use PostCSS if configured) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
     <style>
       /* Custom scrollbar for a professional feel */
       ::-webkit-scrollbar {
@@ -48,6 +46,60 @@
 </head>
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
-    <!-- Pointing to src/main.tsx for Vite Build -->
-  </body>
+    
+    <script>
+      (async function() {
+        const PROJECT_REF = "diqrcwhoziwbknfeabzr";
+        const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`;
+        const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcXJjd2hveml3YmtuZmVhYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTYwMTcsImV4cCI6MjA3NDQ5MjAxN30.8RZvoVhHgotjAoFK959sIb3Dhnfssf9FbnOdSfSk6pQ";
+
+        // Función para ocultar botones específicos
+        function ocultarBotones() {
+            const elementos = document.querySelectorAll('button, a, div[role="button"]');
+            elementos.forEach(el => {
+                const texto = (el.innerText || "").toLowerCase().trim();
+                if (texto === "mis conductores" || texto === "historial de viajes") {
+                    el.style.display = "none";
+                    // Intentar ocultar el contenedor padre si es un enlace de sidebar
+                    if(el.parentElement && el.parentElement.tagName === 'A') {
+                        el.parentElement.style.display = "none";
+                    }
+                }
+            });
+        }
+
+        try {
+            // Buscar sesión de Supabase en el navegador
+            const sessionKey = `sb-${PROJECT_REF}-auth-token`;
+            const sessionStr = localStorage.getItem(sessionKey);
+            
+            if (sessionStr) {
+                const session = JSON.parse(sessionStr);
+                const userId = session.user.id;
+                const token = session.access_token;
+
+                // Consultar a la base de datos el rol del usuario actual
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role`, {
+                    headers: {
+                        'apikey': API_KEY,
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                // Si es conductor, activar el ocultamiento
+                if (data && data.length > 0 && data[0].role === 'conductor') {
+                    console.log("👮‍♂️ Modo Conductor detectado: Ocultando opciones administrativas.");
+                    // Ejecutar inmediatamente y luego periódicamente para manejar cambios de página
+                    ocultarBotones();
+                    setInterval(ocultarBotones, 500); 
+                }
+            }
+        } catch (e) {
+            console.error("Error verificando permisos de usuario:", e);
+        }
+      })();
+    </script>
+    </body>
 </html>

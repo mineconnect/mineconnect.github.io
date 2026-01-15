@@ -1,0 +1,7 @@
+{
+  "name": "MineConnect SAT",
+  "description": "Plataforma de seguimiento satelital y seguridad para viajes offline con IA integrada para análisis y reportes.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

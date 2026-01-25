@@ -1,0 +1,96 @@
+name: Deploy MineConnect SAT to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: ./dist
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+      if: github.ref == 'refs/heads/main'
+
+  # Deploy to sat/ directory in main repo
+  deploy-to-sat:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout main repo
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.repository }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        path: main-repo
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: github-pages
+        path: ./build-artifact
+
+    - name: Configure Git
+      run: |
+        cd main-repo
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Create/update sat directory
+      run: |
+        cd main-repo
+        # Remove existing sat directory if it exists
+        rm -rf sat/
+        # Create new sat directory and copy build files
+        mkdir -p sat
+        cp -r ../build-artifact/* sat/
+        # Add .nojekyll file for GitHub Pages
+        touch sat/.nojekyll
+
+    - name: Commit and push changes
+      run: |
+        cd main-repo
+        git add sat/
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "🚀 Deploy MineConnect SAT - $(date '+%Y-%m-%d %H:%M:%S')"
+          git push
+        fi
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write

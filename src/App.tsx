@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Activity, Clock, User, Menu, X, ShieldCheck, ChevronRight, Smartphone } from 'lucide-react';
+import { MapPin, Activity, Clock, User, Menu, X, ShieldCheck, ChevronRight, Smartphone, Globe } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import DriverSimulator from './components/DriverSimulator';
 import HistoryPanel from './components/HistoryPanel';
@@ -49,7 +49,7 @@ function App() {
 
   const setupRealtimeSubscription = () => {
     const channel = supabase
-      .channel('trips_changes')
+      .channel('trips_changes_global')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'trips' },
         (payload) => {
@@ -75,7 +75,7 @@ function App() {
             created_at: new Date().toISOString()
           };
           setUser(demoProfile);
-          await loadTrips(demoProfile.company_id);
+          await loadTrips(demoProfile.company_id, demoProfile.role);
           return;
       }
 
@@ -96,13 +96,13 @@ function App() {
           created_at: new Date().toISOString()
         };
         setUser(demoProfile);
-        await loadTrips(demoProfile.company_id);
+        await loadTrips(demoProfile.company_id, demoProfile.role);
         return;
       }
       
       if (profile) {
         setUser(profile);
-        await loadTrips(profile.company_id);
+        await loadTrips(profile.company_id, profile.role);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -115,24 +115,51 @@ function App() {
         created_at: new Date().toISOString()
       };
       setUser(demoProfile);
-      await loadTrips(demoProfile.company_id);
+      await loadTrips(demoProfile.company_id, demoProfile.role);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadTrips = async (companyId: string) => {
+  const loadTrips = async (companyId: string, userRole: string = 'operator') => {
       if (!companyId || companyId === '00000000-0000-0000-0000-000000000000') {
-        setTrips([]);
+        if (userRole === 'admin') {
+          // Admin users can see all trips even without company_id
+          try {
+            const { data, error } = await supabase
+              .from('trips')
+              .select('*')
+              .order('created_at', { ascending: false });
+            
+            if (error) {
+              console.error('Admin trips fetch error:', error);
+              setTrips([]);
+            } else if (data) {
+              setTrips(data);
+            }
+          } catch (error) {
+            console.error('Error loading admin trips:', error);
+            setTrips([]);
+          }
+        } else {
+          setTrips([]);
+        }
         return;
       }
       
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('trips')
           .select('*')
-          .eq('company_id', companyId)
           .order('created_at', { ascending: false });
+
+        // If user is admin, don't filter by company_id (global visibility)
+        // Otherwise, filter by company_id as before
+        if (userRole !== 'admin') {
+          query = query.eq('company_id', companyId);
+        }
+
+        const { data, error } = await query;
         
         if (error) {
           console.error('Trips fetch error:', error);
@@ -218,12 +245,24 @@ function App() {
 
               {user && (
                 <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-4 rounded-2xl border border-slate-700 flex items-center space-x-3 shadow-inner backdrop-blur-sm">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center font-bold shadow-lg hardware-accelerated">
-                    <User className="w-6 h-6" />
+                  <div className={`w-12 h-12 ${
+                    user.role === 'admin' 
+                      ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' 
+                      : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                  } rounded-xl flex items-center justify-center font-bold shadow-lg hardware-accelerated`}>
+                    {user.role === 'admin' ? (
+                      <Globe className="w-6 h-6" />
+                    ) : (
+                      <User className="w-6 h-6" />
+                    )}
                   </div>
                   <div className="overflow-hidden flex-1">
                     <p className="text-sm font-bold truncate">{user.full_name}</p>
-                    <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{user.role}</p>
+                    <p className={`text-[10px] uppercase font-black tracking-widest ${
+                      user.role === 'admin' ? 'text-emerald-400' : 'text-slate-500'
+                    }`}>
+                      {user.role === 'admin' ? 'Superadmin Global' : user.role}
+                    </p>
                   </div>
                 </div>
               )}
@@ -274,8 +313,18 @@ function App() {
             <div className="w-full max-w-6xl">
               {/* Dashboard Header */}
               <div className="text-center mb-8">
-                <h2 className="text-3xl lg:text-4xl font-black mb-2">PANEL DE CONTROL</h2>
-                <p className="text-slate-500 uppercase tracking-widest text-xs">Sistema Avanzado de Monitoreo</p>
+                <h2 className="text-3xl lg:text-4xl font-black mb-2">
+                  PANEL DE CONTROL
+                  {user?.role === 'admin' && (
+                    <span className="ml-3 text-sm lg:text-base text-emerald-400 font-normal">
+                      (GLOBAL)
+                    </span>
+                  )}
+                </h2>
+                <p className="text-slate-500 uppercase tracking-widest text-xs">
+                  Sistema Avanzado de Monitoreo
+                  {user?.role === 'admin' && ' - Todas las Empresas'}
+                </p>
               </div>
               
               {/* Stats Grid */}
@@ -292,7 +341,12 @@ function App() {
                       {trips.filter(t => t.status === 'en_curso').length}
                     </div>
                   </div>
-                  <div className="text-slate-400 font-bold uppercase tracking-widest text-xs lg:text-sm">Unidades Activas</div>
+                  <div className="text-slate-400 font-bold uppercase tracking-widest text-xs lg:text-sm">
+                    Unidades Activas
+                    {user?.role === 'admin' && (
+                      <span className="block text-xs text-emerald-400 normal-case">Global</span>
+                    )}
+                  </div>
                   <div className="mt-2 text-xs text-slate-600">Tiempo real</div>
                 </motion.div>
 
@@ -308,7 +362,12 @@ function App() {
                       {trips.filter(t => t.status === 'finalizado').length}
                     </div>
                   </div>
-                  <div className="text-slate-400 font-bold uppercase tracking-widest text-xs lg:text-sm">Viajes Realizados</div>
+                  <div className="text-slate-400 font-bold uppercase tracking-widest text-xs lg:text-sm">
+                    Viajes Realizados
+                    {user?.role === 'admin' && (
+                      <span className="block text-xs text-emerald-400 normal-case">Global</span>
+                    )}
+                  </div>
                   <div className="mt-2 text-xs text-slate-600">Historial completo</div>
                 </motion.div>
               </div>
@@ -327,7 +386,7 @@ function App() {
           </div>
         )}
         {activeView === 'simulator' && <DriverSimulator user={user} onTripUpdate={fetchUserAndTrips} />}
-        {activeView === 'history' && <HistoryPanel trips={trips} onRefresh={fetchUserAndTrips} />}
+        {activeView === 'history' && <HistoryPanel trips={trips} user={user} />}
       </main>
     </div>
   );

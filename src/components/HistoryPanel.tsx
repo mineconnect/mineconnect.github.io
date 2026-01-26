@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, Tooltip } from 'react-leaflet';
-import { Clock, Navigation, Activity, Download, Eye, MapPin, TrendingUp, AlertCircle, FileText, Calendar, User } from 'lucide-react';
+import { MapContainer, TileLayer, Polyline, Marker, Tooltip } from 'react-leaflet';
+import { Clock, Navigation, Activity, Download, Eye, MapPin, TrendingUp, AlertCircle, FileText, Calendar, User, Globe, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { Trip, TripLog } from '../types';
+import type { Trip, TripLog, UserProfile } from '../types';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -32,7 +32,12 @@ const endIcon = new L.Icon({
   popupAnchor: [0, -41]
 });
 
-export default function HistoryPanel({ trips }: { trips: Trip[], onRefresh?: () => void }) {
+interface HistoryPanelProps {
+  trips: Trip[];
+  user: UserProfile | null;
+}
+
+export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
   const [selectedTrip, setSelectedTrip] = useState<{trip: Trip, logs: TripLog[], stops: any[]} | null>(null);
   const [loading, setLoading] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
@@ -227,6 +232,9 @@ export default function HistoryPanel({ trips }: { trips: Trip[], onRefresh?: () 
     }
   };
 
+  const isAdmin = user?.role === 'admin';
+  const completedTrips = trips.filter(t => t.status === 'finalizado');
+
   return (
     <div className="h-screen bg-dark-primary p-4 lg:p-6 safe-area">
       <div className="h-full bg-slate-900/95 backdrop-blur-xl rounded-[2rem] border border-slate-800 overflow-hidden flex flex-col mobile-landscape-compact">
@@ -235,31 +243,47 @@ export default function HistoryPanel({ trips }: { trips: Trip[], onRefresh?: () 
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 lg:p-8 flex justify-between items-center shadow-lg safe-area-top">
           <div>
             <h2 className="text-2xl lg:text-3xl font-black flex items-center space-x-3 italic">
-              <FileText className="w-6 h-6 lg:w-8 lg:h-8 hardware-accelerated" />
+              {isAdmin ? (
+                <Globe className="w-6 h-6 lg:w-8 lg:h-8 hardware-accelerated text-emerald-400" />
+              ) : (
+                <FileText className="w-6 h-6 lg:w-8 lg:h-8 hardware-accelerated" />
+              )}
               <span>HISTORIAL SAT</span>
+              {isAdmin && (
+                <span className="text-sm lg:text-base text-emerald-400 font-normal normal-case ml-2">
+                  (GLOBAL)
+                </span>
+              )}
             </h2>
             <p className="text-blue-100 text-xs lg:text-sm font-bold opacity-80 uppercase tracking-tighter">
               Auditoría de Flota en Tiempo Real
+              {isAdmin && ' - Todas las Empresas'}
             </p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="hidden lg:flex items-center space-x-2 text-white/70">
               <Activity className="w-4 h-4" />
-              <span className="text-xs">{trips.filter(t => t.status === 'finalizado').length} Viajes</span>
+              <span className="text-xs">{completedTrips.length} Viajes</span>
             </div>
+            {isAdmin && (
+              <div className="hidden lg:flex items-center space-x-2 text-emerald-400">
+                <Shield className="w-4 h-4" />
+                <span className="text-xs font-medium">Superadmin</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
           {/* Listado de Viajes - Mobile responsive */}
           <div className="w-full sm:w-80 border-r border-slate-800 p-4 lg:p-6 overflow-y-auto space-y-3 lg:space-y-4 bg-slate-900/20 custom-scrollbar">
-            {trips.filter(t => t.status === 'finalizado').length === 0 ? (
+            {completedTrips.length === 0 ? (
               <div className="text-center py-8">
                 <Clock className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                 <p className="text-slate-500 text-sm">No hay viajes finalizados</p>
               </div>
             ) : (
-              trips.filter(t => t.status === 'finalizado').map((trip) => (
+              completedTrips.map((trip) => (
                 <motion.div
                   key={trip.id}
                   whileHover={{ x: 4 }}
@@ -286,6 +310,12 @@ export default function HistoryPanel({ trips }: { trips: Trip[], onRefresh?: () 
                   <div className="mt-2 text-xs text-slate-500">
                     {trip.driver_name}
                   </div>
+                  {isAdmin && (
+                    <div className="mt-2 flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                      <span className="text-[10px] text-emerald-400">Visibilidad Global</span>
+                    </div>
+                  )}
                 </motion.div>
               ))
             )}
@@ -378,24 +408,22 @@ export default function HistoryPanel({ trips }: { trips: Trip[], onRefresh?: () 
                         
                         {/* Marcadores de Inicio y Fin */}
                         <Marker position={polylinePositions[0]} icon={startIcon}>
-                          <Popup>
+                          <Tooltip>
                             <div className="text-sm">
-                              <strong>PUNTO DE ORIGEN</strong><br />
+                              <strong>Inicio del Viaje</strong><br />
                               {new Date(selectedTrip.trip.start_time).toLocaleTimeString('es-AR')}
                             </div>
-                          </Popup>
-                          <Tooltip>Inicio del Viaje</Tooltip>
+                          </Tooltip>
                         </Marker>
                         
                         {polylinePositions.length > 1 && (
                           <Marker position={polylinePositions[polylinePositions.length - 1]} icon={endIcon}>
-                            <Popup>
+                            <Tooltip>
                               <div className="text-sm">
-                                <strong>PUNTO DE CIERRE</strong><br />
+                                <strong>Fin del Viaje</strong><br />
                                 {selectedTrip.trip.end_time ? new Date(selectedTrip.trip.end_time).toLocaleTimeString('es-AR') : 'N/A'}
                               </div>
-                            </Popup>
-                            <Tooltip>Fin del Viaje</Tooltip>
+                            </Tooltip>
                           </Marker>
                         )}
 
@@ -460,7 +488,9 @@ export default function HistoryPanel({ trips }: { trips: Trip[], onRefresh?: () 
                   <p className="text-xl lg:text-2xl font-black italic tracking-tighter text-center">
                     ESPERANDO SELECCIÓN DE UNIDAD
                   </p>
-                  <p className="text-sm text-slate-500 mt-2">Selecciona un viaje para análisis detallado</p>
+                  <p className="text-sm text-slate-500 mt-2">
+                    {isAdmin ? 'Selecciona un viaje global para análisis' : 'Selecciona un viaje para análisis detallado'}
+                  </p>
                 </div>
               )}
             </AnimatePresence>

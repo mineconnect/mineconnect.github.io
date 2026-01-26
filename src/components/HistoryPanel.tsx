@@ -1,7 +1,7 @@
-import { useState } from 'react'; // useEffect quitado
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet'; // Tooltip quitado
-import { Clock, Navigation, Activity, Download, Eye } from 'lucide-react'; // MapPin, TrendingUp, AlertCircle quitados
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import { Clock, Navigation, Activity, Download, Eye, MapPin, TrendingUp, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -9,7 +9,7 @@ import type { Trip, TripLog } from '../types';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default icons
+// Fix para los iconos de Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -17,206 +17,145 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-interface HistoryPanelProps {
-  trips: Trip[];
-  onRefresh: () => void;
-}
-
-interface TripAnalysis {
-  trip: Trip;
-  logs: TripLog[];
-  stops: Array<{
-    lat: number;
-    lng: number;
-    startTime: string;
-    duration: number;
-  }>;
-}
-
-export default function HistoryPanel({ trips }: HistoryPanelProps) {
-  const [selectedTrip, setSelectedTrip] = useState<TripAnalysis | null>(null);
+export default function HistoryPanel({ trips }: { trips: Trip[], onRefresh: () => void }) {
+  const [selectedTrip, setSelectedTrip] = useState<{trip: Trip, logs: TripLog[], stops: any[]} | null>(null);
   const [loading, setLoading] = useState(false);
-  // hoveredPoint quitado
-
-  const completedTrips = trips.filter(trip => trip.status === 'finalizado');
 
   const analyzeTrip = async (trip: Trip) => {
-    if (!trip || !trip.id) return;
-
+    if (!trip?.id) return;
     setLoading(true);
     try {
-      const { data: logs, error } = await supabase
-        .from('trip_logs')
-        .select('*')
-        .eq('trip_id', trip.id)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      if (logs) {
-        const stops = detectStops(logs);
-        setSelectedTrip({ trip, logs, stops });
-      }
+      const { data: logs } = await supabase.from('trip_logs').select('*').eq('trip_id', trip.id).order('created_at', { ascending: true });
+      if (logs) setSelectedTrip({ trip, logs, stops: [] });
     } catch (error) {
-      console.error('Error analyzing trip:', error);
+      console.error("Error al analizar:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const detectStops = (logs: TripLog[]) => {
-    const stops = [];
-    let currentStop = null;
-
-    for (let i = 0; i < logs.length; i++) {
-      const log = logs[i];
-      
-      if (log.speed === 0 && !currentStop) {
-        currentStop = {
-          lat: log.lat,
-          lng: log.lng,
-          startTime: log.created_at,
-          duration: 0
-        };
-      } else if (log.speed > 0 && currentStop) {
-        const endTime = logs[i - 1]?.created_at || log.created_at;
-        const duration = new Date(endTime).getTime() - new Date(currentStop.startTime).getTime();
-        
-        if (duration > 120000) {
-          stops.push({ ...currentStop, duration });
-        }
-        currentStop = null;
-      }
-    }
-    return stops;
-  };
-
-  const formatDuration = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
-  };
-
-  const generateReport = async () => {
-    if (!selectedTrip) return;
-    const reportElement = document.getElementById('trip-report');
-    if (!reportElement) return;
-
-    try {
-      const canvas = await html2canvas(reportElement);
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF();
-      pdf.addImage(imgData, 'PNG', 10, 10, 190, (canvas.height * 190) / canvas.width);
-      pdf.save(`reporte-${selectedTrip.trip.plate}.pdf`);
-    } catch (error) {
-      console.error('Error generating report:', error);
-    }
-  };
-
   const polylinePositions = selectedTrip?.logs.map(log => [log.lat, log.lng] as [number, number]) || [];
 
+  // FUNCIÓN DE REPORTE ACTIVA (Usa jsPDF y html2canvas)
+  const generateReport = async () => {
+    const report = document.getElementById('trip-report-area');
+    if (!report || !selectedTrip) return;
+    
+    const canvas = await html2canvas(report);
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    pdf.text(`Reporte de Unidad: ${selectedTrip.trip.plate}`, 10, 10);
+    pdf.addImage(imgData, 'PNG', 10, 20, 190, 0);
+    pdf.save(`MineConnect_SAT_${selectedTrip.trip.plate}.pdf`);
+  };
+
   return (
-    <div className="h-screen bg-[#020617] text-white p-4">
-      <div className="h-full max-w-7xl mx-auto">
-        <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700 h-full overflow-hidden flex flex-col shadow-2xl">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
-            <h2 className="text-2xl font-bold text-white flex items-center space-x-3">
+    <div className="h-screen bg-[#020617] p-4 lg:p-8">
+      <div className="h-full bg-slate-900/50 rounded-[2rem] border border-slate-800 overflow-hidden flex flex-col backdrop-blur-xl">
+        
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-8 flex justify-between items-center shadow-lg">
+          <div>
+            <h2 className="text-3xl font-black flex items-center space-x-3 italic">
               <Clock className="w-8 h-8" />
-              <span>Historial de Viajes</span>
+              <span>HISTORIAL SAT</span>
             </h2>
-            <p className="text-blue-100 mt-1">Auditoría de telemetría y rutas satelitales</p>
+            <p className="text-blue-100 text-sm font-bold opacity-80 uppercase tracking-tighter">Auditoría de Flota en Tiempo Real</p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Listado de Viajes */}
+          <div className="w-80 border-r border-slate-800 p-6 overflow-y-auto space-y-4 bg-slate-900/20">
+            {trips.filter(t => t.status === 'finalizado').map((trip) => (
+              <motion.div
+                key={trip.id}
+                whileHover={{ x: 5 }}
+                onClick={() => analyzeTrip(trip)}
+                className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                  selectedTrip?.trip.id === trip.id ? 'bg-blue-600 border-blue-400 shadow-xl' : 'bg-slate-800/50 border-slate-700 hover:border-blue-500'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-xl font-black italic">{trip.plate}</span>
+                  <Eye className="w-4 h-4 opacity-50" />
+                </div>
+                <p className="text-[10px] mt-2 opacity-60 font-black uppercase tracking-widest">{new Date(trip.start_time).toLocaleString('es-AR')}</p>
+              </motion.div>
+            ))}
           </div>
 
-          <div className="flex flex-1 overflow-hidden">
-            <div className="w-80 border-r border-slate-700 p-4 overflow-y-auto bg-slate-900/50">
-              <div className="space-y-3">
-                {completedTrips.map((trip) => (
-                  <motion.div
-                    key={trip.id}
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => analyzeTrip(trip)}
-                    className={`bg-slate-800/80 rounded-xl p-4 cursor-pointer border transition-all ${
-                      selectedTrip?.trip.id === trip.id 
-                        ? 'border-blue-500 bg-blue-500/10' 
-                        : 'border-slate-700 hover:border-slate-500'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-blue-400 text-lg">{trip.plate}</div>
-                        <div className="text-xs text-slate-400 mt-1">
-                          {new Date(trip.start_time).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <Eye className={`w-4 h-4 ${selectedTrip?.trip.id === trip.id ? 'text-blue-400' : 'text-slate-500'}`} />
+          {/* Área de Análisis */}
+          <div id="trip-report-area" className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <div className="h-full flex flex-col items-center justify-center opacity-50">
+                  <Activity className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+                  <p className="font-black italic tracking-widest">SINCRONIZANDO TELEMETRÍA...</p>
+                </div>
+              ) : selectedTrip ? (
+                <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
+                  
+                  {/* Grid de Estadísticas */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-slate-800/80 p-6 rounded-3xl border border-slate-700 shadow-xl">
+                      <TrendingUp className="w-5 h-5 text-blue-500 mb-3" />
+                      <p className="text-3xl font-black text-white">{Math.round(selectedTrip.trip.max_speed)}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase italic">Km/h Max</p>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-1 p-6 overflow-y-auto bg-[#020617]">
-              <AnimatePresence mode="wait">
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center h-64">
-                    <Activity className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                    <p className="text-slate-400 font-mono text-xs uppercase tracking-widest">Descargando Logs...</p>
+                    <div className="bg-slate-800/80 p-6 rounded-3xl border border-slate-700 shadow-xl">
+                      <Activity className="w-5 h-5 text-emerald-500 mb-3" />
+                      <p className="text-3xl font-black text-white">{Math.round(selectedTrip.trip.avg_speed)}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase italic">Km/h Prom</p>
+                    </div>
+                    <div className="bg-slate-800/80 p-6 rounded-3xl border border-slate-700 shadow-xl">
+                      <MapPin className="w-5 h-5 text-purple-500 mb-3" />
+                      <p className="text-3xl font-black text-white">{selectedTrip.logs.length}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase italic">Logs GPS</p>
+                    </div>
+                    <div className="bg-slate-800/80 p-6 rounded-3xl border border-slate-700 shadow-xl">
+                      <AlertCircle className="w-5 h-5 text-yellow-500 mb-3" />
+                      <p className="text-3xl font-black text-white">{selectedTrip.stops.length}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase italic">Paradas</p>
+                    </div>
                   </div>
-                ) : selectedTrip ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                    <div id="trip-report" className="grid grid-cols-4 gap-4">
-                       <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                          <p className="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Vel. Máxima</p>
-                          <p className="text-2xl font-bold text-blue-400">{Math.round(selectedTrip.trip.max_speed)} <span className="text-sm font-normal text-slate-600">km/h</span></p>
-                       </div>
-                       <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                          <p className="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Vel. Promedio</p>
-                          <p className="text-2xl font-bold text-emerald-400">{Math.round(selectedTrip.trip.avg_speed)} <span className="text-sm font-normal text-slate-600">km/h</span></p>
-                       </div>
-                       <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                          <p className="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Puntos GPS</p>
-                          <p className="text-2xl font-bold text-purple-400">{selectedTrip.logs.length}</p>
-                       </div>
-                       <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                          <p className="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Paradas</p>
-                          <p className="text-2xl font-bold text-yellow-400">{selectedTrip.stops.length}</p>
-                       </div>
-                    </div>
 
-                    <div className="h-96 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative z-0">
-                      <MapContainer
-                        center={polylinePositions[0] || [-34.6037, -58.3816]}
-                        zoom={15}
-                        style={{ height: '100%', width: '100%' }}
-                      >
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                        <Polyline positions={polylinePositions} color="#3b82f6" weight={5} />
-                        {selectedTrip.stops.map((stop, i) => (
-                          <Marker key={i} position={[stop.lat, stop.lng]}>
-                            <Popup>Parada: {formatDuration(stop.duration)}</Popup>
+                  {/* Mapa Industrial */}
+                  <div className="h-[450px] rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl relative z-0">
+                    <MapContainer center={polylinePositions[0] || [-34.6, -58.4]} zoom={15} style={{ height: '100%' }}>
+                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                      
+                      {/* Marcadores de Inicio y Fin (Usa Marker y Popup) */}
+                      {polylinePositions.length > 0 && (
+                        <>
+                          <Marker position={polylinePositions[0]}>
+                            <Popup><span className="font-bold">PUNTO DE ORIGEN</span></Popup>
                           </Marker>
-                        ))}
-                      </MapContainer>
-                    </div>
+                          <Marker position={polylinePositions[polylinePositions.length - 1]}>
+                            <Popup><span className="font-bold">PUNTO DE CIERRE</span></Popup>
+                          </Marker>
+                        </>
+                      )}
 
-                    <button onClick={generateReport} className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95">
-                       <Download className="w-5 h-5" />
-                       <span>Exportar Reporte Satelital</span>
-                    </button>
-                  </motion.div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full opacity-20">
-                    <Navigation className="w-24 h-24 mb-4" />
-                    <p className="text-xl font-bold">Seleccione un viaje</p>
+                      <Polyline positions={polylinePositions} color="#3b82f6" weight={7} opacity={0.6} />
+                    </MapContainer>
                   </div>
-                )}
-              </AnimatePresence>
-            </div>
+
+                  <button 
+                    onClick={generateReport}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-5 rounded-2xl font-black flex items-center space-x-3 transition-all transform active:scale-95 shadow-lg shadow-blue-600/30"
+                  >
+                    <Download className="w-6 h-6" />
+                    <span>GENERAR DOCUMENTACIÓN SAT</span>
+                  </button>
+                </motion.div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center opacity-10">
+                  <Navigation className="w-32 h-32 mb-4" />
+                  <p className="text-2xl font-black italic tracking-tighter">ESPERANDO SELECCIÓN DE UNIDAD</p>
+                </div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Activity, Clock, User, Menu, X, ShieldCheck, ChevronRight, Smartphone, Globe, LogOut, Sun, Moon } from 'lucide-react';
+import { MapPin, Activity, Clock, User, Menu, X, ShieldCheck, ChevronRight, Smartphone, Globe, LogOut, Sun, Moon, Users } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import DriverSimulator from './components/DriverSimulator';
 import HistoryPanel from './components/HistoryPanel';
+import UserManagement from './components/UserManagement';
+import Login from './components/Login';
 import type { Trip, UserProfile } from './types';
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'simulator' | 'history'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'simulator' | 'history' | 'users' | 'login'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,7 @@ function App() {
       document.documentElement.classList.add('dark');
     }
 
-    fetchUserAndTrips();
+    checkAuthState();
     setupPWAInstall();
     setupRealtimeSubscription();
     
@@ -42,6 +44,41 @@ function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const checkAuthState = async () => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (authUser) {
+        // Get user profile
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+        
+        if (profile && !error) {
+          setUser(profile);
+          setActiveView('dashboard');
+          await loadTrips(profile.company_id, profile.role);
+        } else {
+          // Profile doesn't exist, sign out
+          await supabase.auth.signOut();
+          setUser(null);
+          setActiveView('login');
+        }
+      } else {
+        setUser(null);
+        setActiveView('login');
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+      setUser(null);
+      setActiveView('login');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const setupPWAInstall = () => {
     window.addEventListener('beforeinstallprompt', (e: any) => {
@@ -70,16 +107,36 @@ function App() {
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Error signing out:', error);
-      } else {
-        setUser(null);
-        setTrips([]);
-        // Optional: redirect to login or reload page
-        // window.location.reload();
       }
+      
+      // Clear all state
+      setUser(null);
+      setTrips([]);
+      setActiveView('login');
+      setSidebarOpen(false);
+      
+      // Force redirect to login page
+      window.location.href = '/login';
+      
     } catch (error) {
       console.error('Logout error:', error);
+      // Force redirect even on error
+      window.location.href = '/login';
     }
   };
+
+  // RBAC: redirect to login route if user manually navigates to /sat while not authenticated
+  useEffect(() => {
+    try {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (path.startsWith('/sat') && !user) {
+        setActiveView('login');
+        window.history.replaceState(null, '', '/sat/login');
+      }
+    } catch {
+      // ignore navigation issues in SSR or non-browser
+    }
+  }, [user]);
 
   const setupRealtimeSubscription = () => {
     const channel = supabase
@@ -88,7 +145,9 @@ function App() {
         { event: '*', schema: 'public', table: 'trips' },
         (payload) => {
           console.log('Realtime update:', payload);
-          fetchUserAndTrips();
+          if (user) {
+            loadTrips(user.company_id, user.role);
+          }
         }
       )
       .subscribe();
@@ -97,136 +156,108 @@ function App() {
   };
 
   const fetchUserAndTrips = async () => {
-    try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      
-      if (!authUser) {
-          const demoProfile = { 
-            id: 'demo', 
-            full_name: 'Invitado MineConnect', 
-            company_id: '00000000-0000-0000-0000-000000000000', 
-            role: 'admin' as const,
-            created_at: new Date().toISOString()
-          };
-          setUser(demoProfile);
-          await loadTrips(demoProfile.company_id, demoProfile.role);
-          return;
-      }
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-      
-      if (error) {
-        console.error('Profile fetch error:', error);
-        // Fallback to demo mode
-        const demoProfile = { 
-          id: 'demo', 
-          full_name: 'Invitado MineConnect', 
-          company_id: '00000000-0000-0000-0000-000000000000', 
-          role: 'admin' as const,
-          created_at: new Date().toISOString()
-        };
-        setUser(demoProfile);
-        await loadTrips(demoProfile.company_id, demoProfile.role);
-        return;
-      }
-      
-      if (profile) {
-        setUser(profile);
-        await loadTrips(profile.company_id, profile.role);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      // Fallback to demo mode
-      const demoProfile = { 
-        id: 'demo', 
-        full_name: 'Invitado MineConnect', 
-        company_id: '00000000-0000-0000-0000-000000000000', 
-        role: 'admin' as const,
-        created_at: new Date().toISOString()
-      };
-      setUser(demoProfile);
-      await loadTrips(demoProfile.company_id, demoProfile.role);
-    } finally {
-      setLoading(false);
-    }
+    if (!user) return;
+    await loadTrips(user.company_id, user.role);
   };
 
-  const loadTrips = async (companyId: string, userRole: string = 'operator') => {
-      if (!companyId || companyId === '00000000-0000-0000-0000-000000000000') {
-        if (userRole === 'admin') {
-          // Admin users can see all trips even without company_id including NULL company_id
-          try {
-            const { data, error } = await supabase
-              .from('trips')
-              .select('*')
-              .order('created_at', { ascending: false });
-            
-            if (error) {
-              console.error('Admin trips fetch error:', error);
-              setTrips([]);
-            } else if (data) {
-              setTrips(data);
-            }
-          } catch (error) {
-            console.error('Error loading admin trips:', error);
-            setTrips([]);
-          }
-        } else {
-          setTrips([]);
-        }
-        return;
-      }
-      
+  const loadTrips = async (companyId: string, userRole: string = 'conductor') => {
+    // Superadmin hardcoded email check
+    const isSuperAdmin = user?.email === 'fbarrosmarengo@gmail.com';
+    
+    if (isSuperAdmin || userRole === 'admin') {
+      // Superadmin sees ALL trips including NULL company_id
       try {
-        let query = supabase
+        const { data, error } = await supabase
           .from('trips')
           .select('*')
           .order('created_at', { ascending: false });
-
-        // If user is admin, don't filter by company_id (global visibility)
-        // Otherwise, filter by company_id as before
-        if (userRole !== 'admin') {
-          query = query.eq('company_id', companyId);
-        }
-
-        const { data, error } = await query;
         
         if (error) {
-          console.error('Trips fetch error:', error);
+          console.error('Admin trips fetch error:', error);
           setTrips([]);
         } else if (data) {
           setTrips(data);
         }
       } catch (error) {
-        console.error('Error loading trips:', error);
+        console.error('Error loading admin trips:', error);
         setTrips([]);
       }
+      return;
+    }
+    
+    try {
+      let query = supabase
+        .from('trips')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // Coordinators see their company trips, Conductors only see their own trips
+      if (userRole === 'coordinator') {
+        query = query.eq('company_id', companyId);
+      } else if (userRole === 'conductor') {
+        query = query.eq('driver_id', user?.id);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Trips fetch error:', error);
+        setTrips([]);
+      } else if (data) {
+        setTrips(data);
+      }
+    } catch (error) {
+      console.error('Error loading trips:', error);
+      setTrips([]);
+    }
+  };
+
+  const canAccessView = (view: string) => {
+    if (!user) return false;
+    
+    switch (view) {
+      case 'dashboard':
+        // Admin and Coordinators can access Dashboard
+        return user.role === 'admin' || user.role === 'coordinator';
+      case 'simulator':
+        return user.role === 'conductor';
+      case 'history':
+        // Only Admins and Coordinators can view history
+        return user.role === 'admin' || user.role === 'coordinator';
+      case 'users':
+        // Users management available to Admins and Coordinators
+        return user.role === 'admin' || user.role === 'coordinator';
+      default:
+        return true;
+    }
   };
 
   if (loading) return (
-    <div className={`min-h-screen flex flex-col items-center justify-center safe-area ${
-      theme === 'dark' ? 'bg-[#020617]' : 'bg-gray-50'
-    }`}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center safe-area">
       <div className="relative">
-        <Activity className={`w-16 h-16 animate-spin mb-6 hardware-accelerated ${
-          theme === 'dark' ? 'text-blue-500' : 'text-blue-600'
-        }`} />
-        <div className={`absolute inset-0 w-16 h-16 border-4 rounded-full animate-ping ${
-          theme === 'dark' ? 'border-blue-500/20' : 'border-blue-600/20'
-        }`}></div>
+        <Activity className="w-16 h-16 text-blue-500 animate-spin mb-6 hardware-accelerated" />
+        <div className="absolute inset-0 w-16 h-16 border-4 border-blue-500/20 rounded-full animate-ping"></div>
       </div>
-      <p className={`font-black text-2xl tracking-widest mb-2 ${
-        theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-      }`}>MINECONNECT SAT</p>
-      <p className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-gray-600'}`}>
-        Iniciando sistema avanzado...
-      </p>
+      <p className="text-blue-400 font-black text-2xl tracking-widest mb-2">MINECONNECT SAT</p>
+      <p className="text-slate-500 text-sm">Iniciando sistema avanzado...</p>
     </div>
   );
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Login onLogin={setUser} />;
+  }
+
+  // Redirect if user doesn't have permission for current view
+  if (!canAccessView(activeView)) {
+    // Find the first accessible view
+    const accessibleViews = ['dashboard', 'simulator', 'history', 'users'].filter(canAccessView);
+    if (accessibleViews.length > 0) {
+      setActiveView(accessibleViews[0] as any);
+    } else {
+      return <Login onLogin={setUser} />;
+    }
+  }
 
   return (
     <div className={`min-h-screen text-white flex overflow-hidden ${
@@ -326,12 +357,18 @@ function App() {
                       ? theme === 'dark' 
                         ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' 
                         : 'bg-gradient-to-br from-emerald-600 to-emerald-800'
+                      : user.role === 'coordinator'
+                      ? theme === 'dark'
+                        ? 'bg-gradient-to-br from-purple-500 to-purple-700'
+                        : 'bg-gradient-to-br from-purple-600 to-purple-800'
                       : theme === 'dark' 
                         ? 'bg-gradient-to-br from-blue-500 to-blue-700' 
                         : 'bg-gradient-to-br from-blue-600 to-blue-800'
                   }`}>
                     {user.role === 'admin' ? (
                       <Globe className="w-6 h-6 text-white" />
+                    ) : user.role === 'coordinator' ? (
+                      <Users className="w-6 h-6 text-white" />
                     ) : (
                       <User className="w-6 h-6 text-white" />
                     )}
@@ -343,9 +380,11 @@ function App() {
                     <p className={`text-[10px] uppercase font-black tracking-widest ${
                       user.role === 'admin' 
                         ? theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                        : user.role === 'coordinator'
+                        ? theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
                         : theme === 'dark' ? 'text-slate-500' : 'text-gray-600'
                     }`}>
-                      {user.role === 'admin' ? 'Superadmin Global' : user.role}
+                      {user.role === 'admin' ? 'Superadmin' : user.role === 'coordinator' ? 'Coordinador' : 'Conductor'}
                     </p>
                   </div>
                 </div>
@@ -354,33 +393,36 @@ function App() {
 
             <nav className="p-4 flex-1 space-y-2 overflow-y-auto custom-scrollbar">
               {[
-                { id: 'dashboard', icon: MapPin, label: 'Panel Global' },
-                { id: 'simulator', icon: Activity, label: 'Simulador Pro' },
-                { id: 'history', icon: Clock, label: 'Historial SAT' }
-              ].map((item) => (
-                <motion.button
-                  key={item.id}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => { setActiveView(item.id as any); setSidebarOpen(false); }}
-                  className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-all group touch-button ${
-                    activeView === item.id 
-                      ? theme === 'dark'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg' 
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                      : theme === 'dark'
-                        ? 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-bold text-sm">{item.label}</span>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 transition-transform flex-shrink-0 ${
-                    activeView === item.id ? 'translate-x-0' : '-translate-x-2 opacity-0 group-hover:opacity-100'
-                  }`} />
-                </motion.button>
-              ))}
+                { id: 'dashboard', icon: MapPin, label: 'Panel Global', roles: ['admin', 'coordinator'] },
+                { id: 'simulator', icon: Activity, label: 'Simulador Pro', roles: ['conductor'] },
+                { id: 'history', icon: Clock, label: 'Historial SAT', roles: ['admin', 'coordinator'] },
+                { id: 'users', icon: Users, label: 'Gestión de Usuarios', roles: ['admin', 'coordinator'] }
+              ]
+                .filter(item => item.roles.includes(user?.role || ''))
+                .map((item) => (
+                  <motion.button
+                    key={item.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { setActiveView(item.id as any); setSidebarOpen(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-all group touch-button ${
+                      activeView === item.id 
+                        ? theme === 'dark'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg' 
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                        : theme === 'dark'
+                          ? 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <span className="font-bold text-sm">{item.label}</span>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 transition-transform flex-shrink-0 ${
+                      activeView === item.id ? 'translate-x-0' : '-translate-x-2 opacity-0 group-hover:opacity-100'
+                    }`} />
+                  </motion.button>
+                ))}
             </nav>
 
             {/* Theme Toggle & Logout */}
@@ -556,6 +598,7 @@ function App() {
         )}
         {activeView === 'simulator' && <DriverSimulator user={user} onTripUpdate={fetchUserAndTrips} />}
         {activeView === 'history' && <HistoryPanel trips={trips} user={user} />}
+        {activeView === 'users' && <UserManagement user={user} onUserUpdate={fetchUserAndTrips} />}
       </main>
     </div>
   );

@@ -32,8 +32,9 @@ export interface TripLog {
 export interface UserProfile {
   id: string;
   full_name: string;
+  email?: string;
   company_id: string;
-  role: 'admin' | 'operator' | 'viewer';
+  role: 'admin' | 'coordinator' | 'conductor';
   created_at: string;
 }
 

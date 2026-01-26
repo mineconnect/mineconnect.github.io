@@ -187,12 +187,16 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
       // Request wake lock for mobile
       await requestWakeLock();
       
+      // Handle admin users with null company_id
+      const tripCompanyId = user.role === 'admin' && !user.company_id ? '00000000-0000-0000-0000-000000000000' : user.company_id;
+      const plate = user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001';
+      
       const newTrip: Omit<Trip, 'id' | 'max_speed' | 'avg_speed' | 'created_at'> = {
-        plate: 'AUTO-001',
+        plate: plate,
         vehicle_id: crypto.randomUUID(),
         driver_id: user.id,
         driver_name: user.full_name,
-        company_id: user.company_id,
+        company_id: tripCompanyId,
         start_time: new Date().toISOString(),
         end_time: null,
         status: 'en_curso'
@@ -214,6 +218,8 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
       setReconnectionAttempts(0);
 
       addGPSLog(0, 0, 0, '🚀 Viaje iniciado - MineConnect SAT Pro');
+      addGPSLog(0, 0, 0, `👤 Usuario: ${user.full_name} (${user.role})`);
+      addGPSLog(0, 0, 0, `🏢 Company ID: ${tripCompanyId}`);
       addGPSLog(0, 0, 0, '📱 Wake Lock activado - Pantalla activa');
       addGPSLog(0, 0, 0, '📡 Iniciando tracking GPS de alta precisión...');
 

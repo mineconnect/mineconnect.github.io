@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Polyline, Marker, Tooltip } from 'react-leaflet';
 import { Clock, Navigation, Activity, Download, Eye, MapPin, TrendingUp, AlertCircle, FileText, Calendar, User, Globe, Shield } from 'lucide-react';
@@ -41,6 +41,15 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
   const [selectedTrip, setSelectedTrip] = useState<{trip: Trip, logs: TripLog[], stops: any[]} | null>(null);
   const [loading, setLoading] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    // Load theme from localStorage
+    const savedTheme = localStorage.getItem('mineconnect-theme') as 'dark' | 'light' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
 
   const analyzeTrip = async (trip: Trip) => {
     if (!trip?.id) return;
@@ -236,13 +245,25 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
   const completedTrips = trips.filter(t => t.status === 'finalizado');
 
   return (
-    <div className="h-screen bg-dark-primary p-4 lg:p-6 safe-area">
-      <div className="h-full bg-slate-900/95 backdrop-blur-xl rounded-[2rem] border border-slate-800 overflow-hidden flex flex-col mobile-landscape-compact">
+    <div className={`h-screen p-4 lg:p-6 safe-area ${
+      theme === 'dark' ? 'bg-dark-primary' : 'bg-gray-50'
+    }`}>
+      <div className={`h-full rounded-[2rem] border overflow-hidden flex flex-col mobile-landscape-compact backdrop-blur-xl ${
+        theme === 'dark' 
+          ? 'bg-slate-900/95 border-slate-800' 
+          : 'bg-white/95 border-gray-200'
+      }`}>
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 lg:p-8 flex justify-between items-center shadow-lg safe-area-top">
+        <div className={`p-4 lg:p-8 flex justify-between items-center shadow-lg safe-area-top ${
+          theme === 'dark' 
+            ? 'bg-gradient-to-r from-blue-600 to-blue-800' 
+            : 'bg-gradient-to-r from-blue-500 to-blue-700'
+        }`}>
           <div>
-            <h2 className="text-2xl lg:text-3xl font-black flex items-center space-x-3 italic">
+            <h2 className={`text-2xl lg:text-3xl font-black flex items-center space-x-3 italic ${
+              theme === 'dark' ? 'text-white' : 'text-white'
+            }`}>
               {isAdmin ? (
                 <Globe className="w-6 h-6 lg:w-8 lg:h-8 hardware-accelerated text-emerald-400" />
               ) : (
@@ -255,13 +276,17 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
                 </span>
               )}
             </h2>
-            <p className="text-blue-100 text-xs lg:text-sm font-bold opacity-80 uppercase tracking-tighter">
+            <p className={`text-xs lg:text-sm font-bold opacity-80 uppercase tracking-tighter ${
+              theme === 'dark' ? 'text-blue-100' : 'text-blue-100'
+            }`}>
               Auditoría de Flota en Tiempo Real
               {isAdmin && ' - Todas las Empresas'}
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="hidden lg:flex items-center space-x-2 text-white/70">
+            <div className={`hidden lg:flex items-center space-x-2 ${
+              theme === 'dark' ? 'text-white/70' : 'text-white/70'
+            }`}>
               <Activity className="w-4 h-4" />
               <span className="text-xs">{completedTrips.length} Viajes</span>
             </div>
@@ -276,11 +301,19 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Listado de Viajes - Mobile responsive */}
-          <div className="w-full sm:w-80 border-r border-slate-800 p-4 lg:p-6 overflow-y-auto space-y-3 lg:space-y-4 bg-slate-900/20 custom-scrollbar">
+          <div className={`w-full sm:w-80 border-r p-4 lg:p-6 overflow-y-auto space-y-3 lg:space-y-4 custom-scrollbar ${
+            theme === 'dark' 
+              ? 'border-slate-800 bg-slate-900/20' 
+              : 'border-gray-200 bg-gray-50/50'
+          }`}>
             {completedTrips.length === 0 ? (
               <div className="text-center py-8">
-                <Clock className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-500 text-sm">No hay viajes finalizados</p>
+                <Clock className={`w-12 h-12 mx-auto mb-3 ${
+                  theme === 'dark' ? 'text-slate-600' : 'text-gray-400'
+                }`} />
+                <p className={`text-sm ${
+                  theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+                }`}>No hay viajes finalizados</p>
               </div>
             ) : (
               completedTrips.map((trip) => (
@@ -291,23 +324,35 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
                   onClick={() => analyzeTrip(trip)}
                   className={`p-4 lg:p-5 rounded-xl lg:rounded-2xl border cursor-pointer transition-all touch-button hardware-accelerated ${
                     selectedTrip?.trip.id === trip.id 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 border-blue-400 shadow-xl' 
-                      : 'bg-slate-800/50 border-slate-700 hover:border-blue-500 hover:bg-slate-800/70'
+                      ? theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 border-blue-400 shadow-xl' 
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-300 shadow-xl'
+                      : theme === 'dark'
+                        ? 'bg-slate-800/50 border-slate-700 hover:border-blue-500 hover:bg-slate-800/70'
+                        : 'bg-white border-gray-200 hover:border-blue-400 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-lg lg:text-xl font-black italic">{trip.plate}</span>
-                    <Eye className="w-4 h-4 lg:opacity-50 text-current" />
+                    <span className={`text-lg lg:text-xl font-black italic ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>{trip.plate}</span>
+                    <Eye className={`w-4 h-4 lg:opacity-50 ${
+                      theme === 'dark' ? 'text-current' : 'text-current'
+                    }`} />
                   </div>
                   <div className="mt-2 flex items-center justify-between">
-                    <p className="text-[10px] lg:text-xs opacity-60 font-black uppercase tracking-widest">
+                    <p className={`text-[10px] lg:text-xs font-black uppercase tracking-widest ${
+                      theme === 'dark' ? 'opacity-60 text-slate-400' : 'opacity-60 text-gray-500'
+                    }`}>
                       {new Date(trip.start_time).toLocaleDateString('es-AR')}
                     </p>
                     <div className="flex items-center space-x-2 text-xs">
                       <span className="text-blue-400">{Math.round(trip.max_speed)} km/h</span>
                     </div>
                   </div>
-                  <div className="mt-2 text-xs text-slate-500">
+                  <div className={`mt-2 text-xs ${
+                    theme === 'dark' ? 'text-slate-500' : 'text-gray-600'
+                  }`}>
                     {trip.driver_name}
                   </div>
                   {isAdmin && (
@@ -327,10 +372,16 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
               {loading ? (
                 <div className="h-full flex flex-col items-center justify-center opacity-50">
                   <div className="relative">
-                    <Activity className="w-12 h-12 lg:w-16 lg:h-16 text-blue-500 animate-spin" />
-                    <div className="absolute inset-0 w-12 h-12 lg:w-16 lg:h-16 border-4 border-blue-500/20 rounded-full animate-ping"></div>
+                    <Activity className={`w-12 h-12 lg:w-16 lg:h-16 animate-spin ${
+                      theme === 'dark' ? 'text-blue-500' : 'text-blue-600'
+                    }`} />
+                    <div className={`absolute inset-0 w-12 h-12 lg:w-16 lg:h-16 border-4 rounded-full animate-ping ${
+                      theme === 'dark' ? 'border-blue-500/20' : 'border-blue-600/20'
+                    }`}></div>
                   </div>
-                  <p className="font-black italic tracking-widest text-sm lg:text-base mt-4">
+                  <p className={`font-black italic tracking-widest text-sm lg:text-base mt-4 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                     SINCRONIZANDO TELEMETRÍA...
                   </p>
                 </div>
@@ -342,18 +393,30 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
                 >
                   
                   {/* Trip Info Header */}
-                  <div className="bg-gradient-to-r from-slate-800/50 to-slate-900/50 rounded-xl lg:rounded-2xl p-4 lg:p-6 border border-slate-700 backdrop-blur-sm">
+                  <div className={`rounded-xl lg:rounded-2xl p-4 lg:p-6 border backdrop-blur-sm ${
+                    theme === 'dark'
+                      ? 'bg-gradient-to-r from-slate-800/50 to-slate-900/50 border-slate-700'
+                      : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300'
+                  }`}>
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div>
-                        <h3 className="text-xl lg:text-2xl font-black">{selectedTrip.trip.plate}</h3>
+                        <h3 className={`text-xl lg:text-2xl font-black ${
+                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>{selectedTrip.trip.plate}</h3>
                         <div className="flex items-center space-x-2 mt-1">
-                          <User className="w-3 h-3 text-slate-400" />
-                          <span className="text-xs lg:text-sm text-slate-400">{selectedTrip.trip.driver_name}</span>
+                          <User className={`w-3 h-3 ${
+                            theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                          }`} />
+                          <span className={`text-xs lg:text-sm ${
+                            theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                          }`}>{selectedTrip.trip.driver_name}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-blue-400" />
-                        <span className="text-xs lg:text-sm text-slate-400">
+                        <span className={`text-xs lg:text-sm ${
+                          theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                        }`}>
                           {new Date(selectedTrip.trip.start_time).toLocaleString('es-AR')}
                         </span>
                       </div>
@@ -362,39 +425,81 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
                   
                   {/* Grid de Estadísticas - Mobile responsive */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-700/20 p-4 lg:p-6 rounded-xl lg:rounded-3xl border border-blue-600/30 shadow-xl">
-                      <TrendingUp className="w-4 h-4 lg:w-5 lg:h-5 text-blue-400 mb-2 lg:mb-3" />
-                      <p className="text-2xl lg:text-3xl font-black text-white">
+                    <div className={`p-4 lg:p-6 rounded-xl lg:rounded-3xl border shadow-xl ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-br from-blue-600/20 to-blue-700/20 border-blue-600/30'
+                        : 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300'
+                    }`}>
+                      <TrendingUp className={`w-4 h-4 lg:w-5 lg:h-5 mb-2 lg:mb-3 ${
+                        theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                      }`} />
+                      <p className={`text-2xl lg:text-3xl font-black ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {Math.round(selectedTrip.trip.max_speed)}
                       </p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase italic">Km/h Max</p>
+                      <p className={`text-[10px] font-black uppercase italic ${
+                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                      }`}>Km/h Max</p>
                     </div>
-                    <div className="bg-gradient-to-br from-emerald-600/20 to-emerald-700/20 p-4 lg:p-6 rounded-xl lg:rounded-3xl border border-emerald-600/30 shadow-xl">
-                      <Activity className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-400 mb-2 lg:mb-3" />
-                      <p className="text-2xl lg:text-3xl font-black text-white">
+                    <div className={`p-4 lg:p-6 rounded-xl lg:rounded-3xl border shadow-xl ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-br from-emerald-600/20 to-emerald-700/20 border-emerald-600/30'
+                        : 'bg-gradient-to-br from-emerald-100 to-emerald-200 border-emerald-300'
+                    }`}>
+                      <Activity className={`w-4 h-4 lg:w-5 lg:h-5 mb-2 lg:mb-3 ${
+                        theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                      }`} />
+                      <p className={`text-2xl lg:text-3xl font-black ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {Math.round(selectedTrip.trip.avg_speed)}
                       </p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase italic">Km/h Prom</p>
+                      <p className={`text-[10px] font-black uppercase italic ${
+                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                      }`}>Km/h Prom</p>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-600/20 to-purple-700/20 p-4 lg:p-6 rounded-xl lg:rounded-3xl border border-purple-600/30 shadow-xl">
-                      <MapPin className="w-4 h-4 lg:w-5 lg:h-5 text-purple-400 mb-2 lg:mb-3" />
-                      <p className="text-2xl lg:text-3xl font-black text-white">
+                    <div className={`p-4 lg:p-6 rounded-xl lg:rounded-3xl border shadow-xl ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-br from-purple-600/20 to-purple-700/20 border-purple-600/30'
+                        : 'bg-gradient-to-br from-purple-100 to-purple-200 border-purple-300'
+                    }`}>
+                      <MapPin className={`w-4 h-4 lg:w-5 lg:h-5 mb-2 lg:mb-3 ${
+                        theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                      }`} />
+                      <p className={`text-2xl lg:text-3xl font-black ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {selectedTrip.logs.length}
                       </p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase italic">Logs GPS</p>
+                      <p className={`text-[10px] font-black uppercase italic ${
+                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                      }`}>Logs GPS</p>
                     </div>
-                    <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-700/20 p-4 lg:p-6 rounded-xl lg:rounded-3xl border border-yellow-600/30 shadow-xl">
-                      <AlertCircle className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-400 mb-2 lg:mb-3" />
-                      <p className="text-2xl lg:text-3xl font-black text-white">
+                    <div className={`p-4 lg:p-6 rounded-xl lg:rounded-3xl border shadow-xl ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-br from-yellow-600/20 to-yellow-700/20 border-yellow-600/30'
+                        : 'bg-gradient-to-br from-yellow-100 to-yellow-200 border-yellow-300'
+                    }`}>
+                      <AlertCircle className={`w-4 h-4 lg:w-5 lg:h-5 mb-2 lg:mb-3 ${
+                        theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                      }`} />
+                      <p className={`text-2xl lg:text-3xl font-black ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {selectedTrip.stops.length}
                       </p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase italic">Paradas</p>
+                      <p className={`text-[10px] font-black uppercase italic ${
+                        theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                      }`}>Paradas</p>
                     </div>
                   </div>
 
                   {/* Mapa Industrial - Mobile responsive */}
                   {polylinePositions.length > 0 ? (
-                    <div className="h-[300px] lg:h-[450px] rounded-[1.5rem] lg:rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl relative z-0">
+                    <div className={`h-[300px] lg:h-[450px] rounded-[1.5rem] lg:rounded-[2.5rem] overflow-hidden border shadow-2xl relative z-0 ${
+                      theme === 'dark' ? 'border-slate-800' : 'border-gray-300'
+                    }`}>
                       <MapContainer 
                         center={polylinePositions[0]} 
                         zoom={15} 
@@ -437,28 +542,46 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
                       </MapContainer>
                     </div>
                   ) : (
-                    <div className="h-[300px] lg:h-[450px] rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-800 flex items-center justify-center bg-slate-900/50">
+                    <div className={`h-[300px] lg:h-[450px] rounded-[1.5rem] lg:rounded-[2.5rem] border flex items-center justify-center ${
+                      theme === 'dark' 
+                        ? 'border-slate-800 bg-slate-900/50' 
+                        : 'border-gray-300 bg-gray-100'
+                    }`}>
                       <div className="text-center">
-                        <MapPin className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-500">Sin datos de ruta disponibles</p>
+                        <MapPin className={`w-12 h-12 mx-auto mb-3 ${
+                          theme === 'dark' ? 'text-slate-600' : 'text-gray-400'
+                        }`} />
+                        <p className={
+                          theme === 'dark' ? 'text-slate-500' : 'text-gray-500'
+                        }>Sin datos de ruta disponibles</p>
                       </div>
                     </div>
                   )}
 
                   {/* Paradas detectadas */}
                   {selectedTrip.stops.length > 0 && (
-                    <div className="bg-slate-800/30 rounded-xl lg:rounded-2xl p-4 lg:p-6 border border-slate-700">
+                    <div className={`rounded-xl lg:rounded-2xl p-4 lg:p-6 border ${
+                      theme === 'dark' 
+                        ? 'bg-slate-800/30 border-slate-700' 
+                        : 'bg-gray-100 border-gray-300'
+                    }`}>
                       <h4 className="font-bold mb-4 flex items-center space-x-2">
                         <AlertCircle className="w-5 h-5 text-yellow-400" />
                         <span>Paradas Detectadas</span>
                       </h4>
                       <div className="space-y-2">
                         {selectedTrip.stops.map((stop, index) => (
-                          <div key={index} className="flex items-center justify-between bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+                          <div key={index} className={`flex items-center justify-between rounded-lg p-3 border ${
+                            theme === 'dark' 
+                              ? 'bg-slate-900/50 border-slate-700' 
+                              : 'bg-white border-gray-200'
+                          }`}>
                             <span className="text-sm font-medium">Parada #{index + 1}</span>
                             <div className="text-right">
                               <span className="text-sm text-accent">{formatDuration(stop.duration)}</span>
-                              <div className="text-xs text-slate-400">
+                              <div className={`text-xs ${
+                                theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                              }`}>
                                 {new Date(stop.startTime).toLocaleTimeString('es-AR')}
                               </div>
                             </div>
@@ -474,7 +597,11 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
                     whileTap={{ scale: 0.96 }}
                     onClick={generateReport}
                     disabled={pdfGenerating}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 lg:px-10 py-3 lg:py-5 rounded-xl lg:rounded-2xl font-black flex items-center justify-center space-x-3 transition-all transform shadow-lg shadow-blue-600/30 touch-button hardware-accelerated"
+                    className={`px-6 lg:px-10 py-3 lg:py-5 rounded-xl lg:rounded-2xl font-black flex items-center justify-center space-x-3 transition-all transform shadow-lg touch-button hardware-accelerated ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-blue-600/30'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-blue-500/30'
+                    }`}
                   >
                     <Download className={`w-5 h-5 lg:w-6 lg:h-6 ${pdfGenerating ? 'animate-spin' : ''}`} />
                     <span className="text-sm lg:text-base">
@@ -485,10 +612,14 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
               ) : (
                 <div className="h-full flex flex-col items-center justify-center opacity-10">
                   <Navigation className="w-24 h-24 lg:w-32 lg:h-32 mb-4" />
-                  <p className="text-xl lg:text-2xl font-black italic tracking-tighter text-center">
+                  <p className={`text-xl lg:text-2xl font-black italic tracking-tighter text-center ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                     ESPERANDO SELECCIÓN DE UNIDAD
                   </p>
-                  <p className="text-sm text-slate-500 mt-2">
+                  <p className={`text-sm mt-2 ${
+                    theme === 'dark' ? 'text-slate-500' : 'text-gray-600'
+                  }`}>
                     {isAdmin ? 'Selecciona un viaje global para análisis' : 'Selecciona un viaje para análisis detallado'}
                   </p>
                 </div>

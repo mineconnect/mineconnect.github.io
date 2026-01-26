@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Activity, Clock, User, Menu, X, ShieldCheck, ChevronRight, Smartphone, Globe } from 'lucide-react';
+import { MapPin, Activity, Clock, User, Menu, X, ShieldCheck, ChevronRight, Smartphone, Globe, LogOut, Sun, Moon } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import DriverSimulator from './components/DriverSimulator';
 import HistoryPanel from './components/HistoryPanel';
@@ -14,8 +14,19 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [pwaInstallPrompt, setPwaInstallPrompt] = useState<any>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
+    // Load theme from localStorage
+    const savedTheme = localStorage.getItem('mineconnect-theme') as 'dark' | 'light' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+    } else {
+      // Default to dark theme
+      document.documentElement.classList.add('dark');
+    }
+
     fetchUserAndTrips();
     setupPWAInstall();
     setupRealtimeSubscription();
@@ -44,6 +55,29 @@ function App() {
       pwaInstallPrompt.prompt();
       await pwaInstallPrompt.userChoice;
       setPwaInstallPrompt(null);
+    }
+  };
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('mineconnect-theme', newTheme);
+    document.documentElement.classList.toggle('dark', newTheme === 'dark');
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      } else {
+        setUser(null);
+        setTrips([]);
+        // Optional: redirect to login or reload page
+        // window.location.reload();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
     }
   };
 
@@ -124,7 +158,7 @@ function App() {
   const loadTrips = async (companyId: string, userRole: string = 'operator') => {
       if (!companyId || companyId === '00000000-0000-0000-0000-000000000000') {
         if (userRole === 'admin') {
-          // Admin users can see all trips even without company_id
+          // Admin users can see all trips even without company_id including NULL company_id
           try {
             const { data, error } = await supabase
               .from('trips')
@@ -174,21 +208,37 @@ function App() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center safe-area">
+    <div className={`min-h-screen flex flex-col items-center justify-center safe-area ${
+      theme === 'dark' ? 'bg-[#020617]' : 'bg-gray-50'
+    }`}>
       <div className="relative">
-        <Activity className="w-16 h-16 text-blue-500 animate-spin mb-6 hardware-accelerated" />
-        <div className="absolute inset-0 w-16 h-16 border-4 border-blue-500/20 rounded-full animate-ping"></div>
+        <Activity className={`w-16 h-16 animate-spin mb-6 hardware-accelerated ${
+          theme === 'dark' ? 'text-blue-500' : 'text-blue-600'
+        }`} />
+        <div className={`absolute inset-0 w-16 h-16 border-4 rounded-full animate-ping ${
+          theme === 'dark' ? 'border-blue-500/20' : 'border-blue-600/20'
+        }`}></div>
       </div>
-      <p className="text-blue-400 font-black text-2xl tracking-widest mb-2">MINECONNECT SAT</p>
-      <p className="text-slate-500 text-sm">Iniciando sistema avanzado...</p>
+      <p className={`font-black text-2xl tracking-widest mb-2 ${
+        theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+      }`}>MINECONNECT SAT</p>
+      <p className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-gray-600'}`}>
+        Iniciando sistema avanzado...
+      </p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white flex overflow-hidden">
+    <div className={`min-h-screen text-white flex overflow-hidden ${
+      theme === 'dark' ? 'bg-[#020617]' : 'bg-gray-50 text-gray-900'
+    }`}>
       {/* PWA Install Banner */}
       {pwaInstallPrompt && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-blue-700 p-3 flex items-center justify-between safe-area">
+        <div className={`fixed top-0 left-0 right-0 z-50 p-3 flex items-center justify-between safe-area ${
+          theme === 'dark' 
+            ? 'bg-gradient-to-r from-blue-600 to-blue-700' 
+            : 'bg-gradient-to-r from-blue-500 to-blue-600'
+        }`}>
           <div className="flex items-center space-x-3">
             <Smartphone className="w-5 h-5" />
             <span className="text-sm font-medium">Instalar MineConnect SAT en tu dispositivo</span>
@@ -213,9 +263,13 @@ function App() {
       {/* Connection Status */}
       <div className="fixed top-20 right-6 z-40">
         <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-2 ${
-          isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+          isOnline 
+            ? 'bg-emerald-500/20 text-emerald-400' 
+            : 'bg-red-500/20 text-red-400'
         }`}>
-          <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-red-400'} animate-pulse`}></div>
+          <div className={`w-2 h-2 rounded-full ${
+            isOnline ? 'bg-emerald-400' : 'bg-red-400'
+          } animate-pulse`}></div>
           <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
         </div>
       </div>
@@ -227,39 +281,69 @@ function App() {
             initial={{ x: -300 }}
             animate={{ x: 0 }}
             exit={{ x: -300 }}
-            className="w-72 bg-slate-900 border-r border-slate-800 fixed lg:relative h-full z-50 flex flex-col"
+            className={`w-72 border-r fixed lg:relative h-full z-50 flex flex-col ${
+              theme === 'dark' 
+                ? 'bg-slate-900 border-slate-800' 
+                : 'bg-white border-gray-200'
+            }`}
           >
-            <div className="p-6 border-b border-slate-800 safe-area-top">
+            <div className={`p-6 border-b safe-area-top ${
+              theme === 'dark' ? 'border-slate-800' : 'border-gray-200'
+            }`}>
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-2">
-                  <ShieldCheck className="w-8 h-8 text-blue-500 hardware-accelerated" />
-                  <h1 className="text-xl font-black tracking-tighter">MINE<span className="text-blue-500">CONNECT</span> SAT</h1>
+                  <ShieldCheck className={`w-8 h-8 hardware-accelerated ${
+                    theme === 'dark' ? 'text-blue-500' : 'text-blue-600'
+                  }`} />
+                  <h1 className={`text-xl font-black tracking-tighter ${
+                    theme === 'dark' ? '' : 'text-gray-900'
+                  }`}>
+                    MINE<span className={theme === 'dark' ? 'text-blue-500' : 'text-blue-600'}>CONNECT</span> SAT
+                  </h1>
                 </div>
                 <button 
                   onClick={() => setSidebarOpen(false)} 
-                  className="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors touch-button"
+                  className={`lg:hidden p-2 rounded-lg transition-colors touch-button ${
+                    theme === 'dark' 
+                      ? 'hover:bg-slate-800' 
+                      : 'hover:bg-gray-100'
+                  }`}
                 >
-                  <X className="w-6 h-6 text-slate-400" />
+                  <X className={`w-6 h-6 ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`} />
                 </button>
               </div>
 
               {user && (
-                <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-4 rounded-2xl border border-slate-700 flex items-center space-x-3 shadow-inner backdrop-blur-sm">
-                  <div className={`w-12 h-12 ${
+                <div className={`bg-gradient-to-br p-4 rounded-2xl flex items-center space-x-3 shadow-inner backdrop-blur-sm border ${
+                  theme === 'dark' 
+                    ? 'from-slate-800/50 to-slate-900/50 border-slate-700' 
+                    : 'from-gray-100/50 to-gray-200/50 border-gray-300'
+                }`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold shadow-lg hardware-accelerated ${
                     user.role === 'admin' 
-                      ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' 
-                      : 'bg-gradient-to-br from-blue-500 to-blue-700'
-                  } rounded-xl flex items-center justify-center font-bold shadow-lg hardware-accelerated`}>
+                      ? theme === 'dark' 
+                        ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' 
+                        : 'bg-gradient-to-br from-emerald-600 to-emerald-800'
+                      : theme === 'dark' 
+                        ? 'bg-gradient-to-br from-blue-500 to-blue-700' 
+                        : 'bg-gradient-to-br from-blue-600 to-blue-800'
+                  }`}>
                     {user.role === 'admin' ? (
-                      <Globe className="w-6 h-6" />
+                      <Globe className="w-6 h-6 text-white" />
                     ) : (
-                      <User className="w-6 h-6" />
+                      <User className="w-6 h-6 text-white" />
                     )}
                   </div>
                   <div className="overflow-hidden flex-1">
-                    <p className="text-sm font-bold truncate">{user.full_name}</p>
+                    <p className={`text-sm font-bold truncate ${
+                      theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>{user.full_name}</p>
                     <p className={`text-[10px] uppercase font-black tracking-widest ${
-                      user.role === 'admin' ? 'text-emerald-400' : 'text-slate-500'
+                      user.role === 'admin' 
+                        ? theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                        : theme === 'dark' ? 'text-slate-500' : 'text-gray-600'
                     }`}>
                       {user.role === 'admin' ? 'Superadmin Global' : user.role}
                     </p>
@@ -280,8 +364,12 @@ function App() {
                   onClick={() => { setActiveView(item.id as any); setSidebarOpen(false); }}
                   className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-all group touch-button ${
                     activeView === item.id 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg' 
-                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                      ? theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg' 
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                      : theme === 'dark'
+                        ? 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -294,6 +382,43 @@ function App() {
                 </motion.button>
               ))}
             </nav>
+
+            {/* Theme Toggle & Logout */}
+            <div className={`p-4 border-t space-y-2 ${
+              theme === 'dark' ? 'border-slate-800' : 'border-gray-200'
+            }`}>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={toggleTheme}
+                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl transition-all touch-button ${
+                  theme === 'dark'
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-5 h-5" />
+                ) : (
+                  <Moon className="w-5 h-5" />
+                )}
+                <span className="text-sm font-medium">
+                  {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
+                </span>
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
+                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl transition-all touch-button ${
+                  theme === 'dark'
+                    ? 'bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-600/20'
+                    : 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200'
+                }`}
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="text-sm font-medium">Cerrar Sesión</span>
+              </motion.button>
+            </div>
           </motion.aside>
         )}
       </AnimatePresence>
@@ -301,7 +426,9 @@ function App() {
       {/* Mobile Trigger */}
       <button 
         onClick={() => setSidebarOpen(true)} 
-        className="lg:hidden fixed top-24 left-6 z-40 bg-blue-600 p-4 rounded-xl shadow-xl touch-button safe-area-left hardware-accelerated"
+        className={`lg:hidden fixed top-24 left-6 z-40 p-4 rounded-xl shadow-xl touch-button safe-area-left hardware-accelerated ${
+          theme === 'dark' ? 'bg-blue-600' : 'bg-blue-500'
+        }`}
       >
         <Menu className="w-6 h-6 text-white" />
       </button>
@@ -313,15 +440,21 @@ function App() {
             <div className="w-full max-w-6xl">
               {/* Dashboard Header */}
               <div className="text-center mb-8">
-                <h2 className="text-3xl lg:text-4xl font-black mb-2">
+                <h2 className={`text-3xl lg:text-4xl font-black mb-2 ${
+                  theme === 'dark' ? '' : 'text-gray-900'
+                }`}>
                   PANEL DE CONTROL
                   {user?.role === 'admin' && (
-                    <span className="ml-3 text-sm lg:text-base text-emerald-400 font-normal">
+                    <span className={`ml-3 text-sm lg:text-base font-normal ${
+                      theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}>
                       (GLOBAL)
                     </span>
                   )}
                 </h2>
-                <p className="text-slate-500 uppercase tracking-widest text-xs">
+                <p className={`uppercase tracking-widest text-xs ${
+                  theme === 'dark' ? 'text-slate-500' : 'text-gray-600'
+                }`}>
                   Sistema Avanzado de Monitoreo
                   {user?.role === 'admin' && ' - Todas las Empresas'}
                 </p>
@@ -331,44 +464,76 @@ function App() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
                 <motion.div 
                   whileHover={{ scale: 1.02, y: -2 }}
-                  className="bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-slate-700 p-6 lg:p-10 rounded-[2rem] lg:rounded-[2.5rem] shadow-2xl backdrop-blur-md hardware-accelerated"
+                  className={`p-6 lg:p-10 rounded-[2rem] lg:rounded-[2.5rem] shadow-2xl backdrop-blur-md hardware-accelerated ${
+                    theme === 'dark'
+                      ? 'bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-slate-700'
+                      : 'bg-gradient-to-br from-white to-gray-50 border border-gray-200'
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-4 lg:mb-6">
-                    <div className="bg-blue-500/20 p-3 rounded-xl">
-                      <Activity className="text-blue-500 w-8 h-8 lg:w-12 lg:h-12" />
+                    <div className={`p-3 rounded-xl ${
+                      theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'
+                    }`}>
+                      <Activity className={`w-8 h-8 lg:w-12 lg:h-12 ${
+                        theme === 'dark' ? 'text-blue-500' : 'text-blue-600'
+                      }`} />
                     </div>
-                    <div className="text-3xl lg:text-4xl font-black text-blue-500">
+                    <div className={`text-3xl lg:text-4xl font-black ${
+                      theme === 'dark' ? 'text-blue-500' : 'text-blue-600'
+                    }`}>
                       {trips.filter(t => t.status === 'en_curso').length}
                     </div>
                   </div>
-                  <div className="text-slate-400 font-bold uppercase tracking-widest text-xs lg:text-sm">
+                  <div className={`font-bold uppercase tracking-widest text-xs lg:text-sm ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`}>
                     Unidades Activas
                     {user?.role === 'admin' && (
-                      <span className="block text-xs text-emerald-400 normal-case">Global</span>
+                      <span className={`block text-xs normal-case ${
+                        theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                      }`}>Global</span>
                     )}
                   </div>
-                  <div className="mt-2 text-xs text-slate-600">Tiempo real</div>
+                  <div className={`mt-2 text-xs ${
+                    theme === 'dark' ? 'text-slate-600' : 'text-gray-500'
+                  }`}>Tiempo real</div>
                 </motion.div>
 
                 <motion.div 
                   whileHover={{ scale: 1.02, y: -2 }}
-                  className="bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-slate-700 p-6 lg:p-10 rounded-[2rem] lg:rounded-[2.5rem] shadow-2xl backdrop-blur-md hardware-accelerated"
+                  className={`p-6 lg:p-10 rounded-[2rem] lg:rounded-[2.5rem] shadow-2xl backdrop-blur-md hardware-accelerated ${
+                    theme === 'dark'
+                      ? 'bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-slate-700'
+                      : 'bg-gradient-to-br from-white to-gray-50 border border-gray-200'
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-4 lg:mb-6">
-                    <div className="bg-emerald-500/20 p-3 rounded-xl">
-                      <Clock className="text-emerald-500 w-8 h-8 lg:w-12 lg:h-12" />
+                    <div className={`p-3 rounded-xl ${
+                      theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'
+                    }`}>
+                      <Clock className={`w-8 h-8 lg:w-12 lg:h-12 ${
+                        theme === 'dark' ? 'text-emerald-500' : 'text-emerald-600'
+                      }`} />
                     </div>
-                    <div className="text-3xl lg:text-4xl font-black text-emerald-500">
+                    <div className={`text-3xl lg:text-4xl font-black ${
+                      theme === 'dark' ? 'text-emerald-500' : 'text-emerald-600'
+                    }`}>
                       {trips.filter(t => t.status === 'finalizado').length}
                     </div>
                   </div>
-                  <div className="text-slate-400 font-bold uppercase tracking-widest text-xs lg:text-sm">
+                  <div className={`font-bold uppercase tracking-widest text-xs lg:text-sm ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-gray-600'
+                  }`}>
                     Viajes Realizados
                     {user?.role === 'admin' && (
-                      <span className="block text-xs text-emerald-400 normal-case">Global</span>
+                      <span className={`block text-xs normal-case ${
+                        theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                      }`}>Global</span>
                     )}
                   </div>
-                  <div className="mt-2 text-xs text-slate-600">Historial completo</div>
+                  <div className={`mt-2 text-xs ${
+                    theme === 'dark' ? 'text-slate-600' : 'text-gray-500'
+                  }`}>Historial completo</div>
                 </motion.div>
               </div>
 
@@ -377,7 +542,11 @@ function App() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setActiveView('simulator')}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-bold touch-button shadow-lg hardware-accelerated"
+                  className={`px-6 py-3 rounded-xl font-bold touch-button shadow-lg hardware-accelerated ${
+                    theme === 'dark' 
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white' 
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                  }`}
                 >
                   Iniciar Operación
                 </motion.button>

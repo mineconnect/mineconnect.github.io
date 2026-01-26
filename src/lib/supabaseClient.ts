@@ -30,7 +30,7 @@ export interface Database {
           id: string
           full_name: string
           company_id: string
-          role: 'admin' | 'operator' | 'viewer'
+          role: 'SUPERADMIN' | 'COORDINADOR' | 'CONDUCTOR'
           created_at: string
         }
         Insert: {

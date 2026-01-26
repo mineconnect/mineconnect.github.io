@@ -1,199 +1,158 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, Navigation, AlertCircle, Activity, Battery, MapPin } from 'lucide-react';
+import { Play, Pause, Navigation, Activity, Smartphone } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import type { UserProfile } from '../App';
+import type { Trip, UserProfile } from '../types';
 
-// --- Types ---
 interface DriverSimulatorProps {
-  userProfile: UserProfile | null;
+  user: UserProfile | null;
+  onTripUpdate: () => void;
 }
 
-interface Trip {
-  id: string;
-  plate: string;
-  driver_id: string;
-  driver_name: string;
-  company_id: string;
-  start_time: string;
-}
-
-const GPS_INTERVAL = 10000; // 10 seconds between position checks
-const RETRY_DELAY = 5000; // 5 seconds for timeout retry
-const MAX_RETRIES = 3; // Max 3 retries on timeout
-
-// --- Component ---
-export default function DriverSimulator({ userProfile }: DriverSimulatorProps) {
+export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorProps) {
   const [isTracking, setIsTracking] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
-  const [error, setError] = useState<string |null>(null);
-  const [statusMessage, setStatusMessage] = useState("Listo para iniciar.");
-  
-  // Refs to hold values that change without re-rendering
-  const gpsTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [gpsLogs, setGpsLogs] = useState<any[]>([]);
+  const [watchId, setWatchId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tripDuration, setTripDuration] = useState(0);
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
-  const stopAllTimers = useCallback(() => {
-    if (gpsTimerRef.current) clearInterval(gpsTimerRef.current);
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    gpsTimerRef.current = null;
-    retryTimerRef.current = null;
-  }, []);
-  
-  // Cleanup timers on component unmount
   useEffect(() => {
-    return () => stopAllTimers();
-  }, [stopAllTimers]);
+    let interval: any;
+    if (isTracking && currentTrip) {
+      interval = setInterval(() => setTripDuration(prev => prev + 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTracking, currentTrip]);
 
-  const getPositionWithRetries = useCallback((tripId: string, attempt = 1) => {
-    setStatusMessage("Obteniendo señal GPS...");
-    
-    navigator.geolocation.getCurrentPosition(
-      // --- SUCCESS ---
-      async (position) => {
-        const speedKmh = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
+  useEffect(() => {
+    if ('getBattery' in navigator) {
+      (navigator as any).getBattery().then((battery: any) => {
+        setBatteryLevel(Math.round(battery.level * 100));
+      });
+    }
+  }, []);
+
+  const addGPSLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString('es-AR');
+    setGpsLogs(prev => [...prev.slice(-15), { timestamp, message }]);
+  };
+
+  const startGPSWatch = (tripId: string) => {
+    return navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, speed } = pos.coords;
+        const speedKmh = speed ? Math.round(speed * 3.6) : 0;
         setCurrentSpeed(speedKmh);
-        setStatusMessage(`Posición adquirida. Velocidad: ${speedKmh}` km/h``);
-
-        await supabase.from('trip_logs').insert({
-          trip_id: tripId,
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          speed: speedKmh,
-        });
+        addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
+        await supabase.from('trip_logs').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh });
       },
-      // --- ERROR ---
       (err) => {
-        if (err.code === err.TIMEOUT) {
-          setStatusMessage(`GPS Timeout. Reintentando en 5s... (${attempt}/${MAX_RETRIES})`);
-          if (attempt < MAX_RETRIES) {
-            retryTimerRef.current = setTimeout(() => getPositionWithRetries(tripId, attempt + 1), RETRY_DELAY);
-          } else {
-            setStatusMessage("Error: No se pudo obtener la señal GPS después de varios intentos.");
-            setCurrentSpeed(0); // Set speed to 0 after final failure
-          }
-        } else {
-          const errorMsg = "Error de GPS: " + (err.code === err.PERMISSION_DENIED ? "Permiso denegado." : "Señal no disponible.");
-          setError(errorMsg);
-  
-          // Stop tracking on critical errors
-          if (isTracking) {
-             stopTracking();
-          }
-        }
+        const msg = err.code === 3 ? "Tiempo de espera agotado" : "Error de señal";
+        setError(msg);
+        addGPSLog(`❌ ${msg}`);
       },
-      // --- OPTIONS ---
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
     );
-  }, [isTracking]);
+  };
 
   const startTracking = async () => {
-    if (!userProfile) {
-      setError("No se pudo iniciar: perfil de usuario no encontrado.");
-      return;
-    }
-    stopAllTimers(); // Ensure no previous timers are running
-    
-    setIsTracking(true);
-    setStatusMessage("Iniciando nuevo viaje...");
-
-    const { data, error: tripError } = await supabase
-      .from('trips')
-      .insert({
-        plate: 'SIM-001',
-        driver_id: userProfile.id,
-        driver_name: userProfile.full_name,
-        company_id: userProfile.company_id,
+    if (!user) return setError('Usuario no autenticado');
+    try {
+      const tripCompanyId = user.email === 'fbarrosmarengo@gmail.com' ? '00000000-0000-0000-0000-000000000000' : user.company_id;
+      const { data, error: tripError } = await supabase.from('trips').insert({
+        plate: user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001',
+        vehicle_id: crypto.randomUUID(),
+        driver_id: user.id,
+        driver_name: user.full_name,
+        company_id: tripCompanyId,
         status: 'en_curso',
-      })
-      .select()
-      .single();
+        start_time: new Date().toISOString()
+      }).select().single();
 
-    if (tripError) {
-      setError("No se pudo crear el viaje en la base de datos.");
-      setIsTracking(false);
-      return;
-    }
-
-    setCurrentTrip(data as Trip);
-    const tripId = data.id;
-
-    // Initial position check, then set interval
-    getPositionWithRetries(tripId);
-    gpsTimerRef.current = setInterval(() => getPositionWithRetries(tripId), GPS_INTERVAL);
+      if (tripError) throw tripError;
+      setCurrentTrip(data);
+      setIsTracking(true);
+      setGpsLogs([]);
+      addGPSLog("🚀 Operación iniciada - SAT Pro Activo");
+      const id = startGPSWatch(data.id);
+      setWatchId(id);
+    } catch (e) { setError('Error al iniciar'); }
   };
 
   const stopTracking = async () => {
-    stopAllTimers();
-    setIsTracking(false);
-    setStatusMessage("Viaje finalizado. Guardando datos...");
-
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     if (currentTrip) {
-      const { data: logs } = await supabase
-        .from('trip_logs')
-        .select('speed')
-        .eq('trip_id', currentTrip.id);
-      
-      const speeds = logs?.map(l => l.speed) || [0];
-      const maxSpeed = Math.max(...speeds);
-      const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length || 0;
-
-      await supabase
-        .from('trips')
-        .update({
-          end_time: new Date().toISOString(),
-          status: 'finalizado',
-          max_speed: maxSpeed,
-          avg_speed: avgSpeed,
-        })
-        .eq('id', currentTrip.id);
+      await supabase.from('trips').update({ end_time: new Date().toISOString(), status: 'finalizado' }).eq('id', currentTrip.id);
+      onTripUpdate();
     }
-    
+    setIsTracking(false);
     setCurrentTrip(null);
     setCurrentSpeed(0);
-    setStatusMessage("Listo para iniciar.");
+    addGPSLog("🏁 Operación finalizada");
   };
 
-  // Render Guard
-  if (userProfile?.role !== 'CONDUCTOR') {
-     return (
-      <div className="p-6 text-center text-slate-500">
-        <AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-        <h3 className="mt-2 text-lg font-medium text-white">Acceso No Autorizado</h3>
-        <p>El simulador es solo para el rol de CONDUCTOR.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-full flex items-center justify-center bg-slate-900 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md text-white bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-700 shadow-2xl p-8 text-center"
-      >
-        <Navigation className="mx-auto h-16 w-16 text-blue-400 mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Simulador de Conductor</h1>
-        <p className="text-slate-400 mb-6">{statusMessage}</p>
-        
-        <div className="my-8">
-            <p className="text-6xl font-black tracking-tighter">{currentSpeed}</p>
-            <p className="text-slate-500">km/h</p>
+    <div className="h-screen flex items-center justify-center p-4 bg-[#020617]">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-4xl rounded-3xl border shadow-2xl overflow-hidden bg-slate-900 border-slate-800">
+        <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-700 flex justify-between items-center">
+          <h2 className="text-2xl font-black text-white flex items-center space-x-3">
+            <Navigation className="w-8 h-8" />
+            <span>MineConnect SAT Pro</span>
+          </h2>
+          {batteryLevel && <span className="text-blue-200 text-sm font-bold">{batteryLevel}% 🔋</span>}
         </div>
 
-        <motion.button
-          onClick={isTracking ? stopTracking : startTracking}
-          whileTap={{ scale: 0.95 }}
-          className={`w-full py-4 rounded-lg font-bold text-lg transition-colors ${
-            isTracking ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-          }`}
-        >
-          {isTracking ? <Pause className="inline-block mr-2"/> : <Play className="inline-block mr-2"/>}
-          {isTracking ? 'Finalizar Viaje' : 'Iniciar Viaje'}
-        </motion.button>
+        <div className="p-4 bg-slate-800/50 border-b border-slate-700">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase font-black">Velocidad</p>
+              <p className="text-2xl font-black text-white">{currentSpeed} <span className="text-xs">km/h</span></p>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase font-black">Estado</p>
+              <div className={`flex items-center justify-center space-x-2 ${isTracking ? 'text-emerald-400' : 'text-slate-500'}`}>
+                <Activity className={`w-4 h-4 ${isTracking ? 'animate-pulse' : ''}`} />
+                <span className="font-bold text-sm">{isTracking ? 'EN RUTA' : 'STANDBY'}</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase font-black">Cronómetro</p>
+              <p className="text-2xl font-black text-blue-400">
+                {Math.floor(tripDuration / 60)}:{(tripDuration % 60).toString().padStart(2, '0')}
+              </p>
+            </div>
+          </div>
+        </div>
 
-        {error && <p className="text-red-400 mt-4 text-sm">{error}</p>}
+        <div className="p-8 flex flex-col items-center">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={isTracking ? stopTracking : startTracking}
+            className={`w-40 h-40 rounded-full flex items-center justify-center shadow-2xl transition-all ${
+              isTracking ? 'bg-red-600 shadow-red-900/40' : 'bg-emerald-600 shadow-emerald-900/40'
+            }`}
+          >
+            {isTracking ? <Pause className="w-16 h-16 text-white" /> : <Play className="w-16 h-16 text-white ml-2" />}
+          </motion.button>
+
+          <div className="w-full mt-8">
+            <p className="text-xs text-slate-500 font-bold uppercase mb-2 flex items-center">
+              <Smartphone className="w-3 h-3 mr-2" /> Consola GPS
+            </p>
+            <div ref={logContainerRef} className="rounded-xl p-4 h-40 overflow-y-auto font-mono text-[10px] bg-black/50 text-emerald-500 border border-slate-800">
+              {gpsLogs.map((log, i) => (
+                <div key={i} className="mb-1">
+                  <span className="opacity-50">[{log.timestamp}]</span> {log.message}
+                </div>
+              ))}
+            </div>
+          </div>
+          {error && <p className="text-red-400 mt-4 text-sm text-center">{error}</p>}
+        </div>
       </motion.div>
     </div>
   );

@@ -203,7 +203,7 @@ function App() {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => { setActiveView(item.id); setSidebarOpen(false); }}
                   className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-all group ${
-                    activeView === `item.id` 
+                    activeView === item.id
                       ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg' 
                       : `${theme === 'dark' ? 'text-slate-400 hover:bg-slate-800/50 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
                   }`}

@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapContainer, TileLayer, Polyline, Marker, Tooltip } from 'react-leaflet';
-import { Clock, Download, Eye, MapPin, Activity, AlertCircle, TrendingUp, FileText, Calendar, User, Globe } from 'lucide-react';
+import { MapContainer, TileLayer, Polyline, Marker } from 'react-leaflet';
+import { Navigation, Activity, TrendingUp, FileText, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import 'leaflet/dist/leaflet.css';
+import type { Trip, TripLog, UserProfile } from '../types';
 import L from 'leaflet';
-import type { UserProfile } from '../App'; // Import UserProfile from App
+import 'leaflet/dist/leaflet.css';
 
-// --- Leaflet Icon Fix ---
+// Fix para los iconos de Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -18,196 +18,166 @@ L.Icon.Default.mergeOptions({
 });
 
 const startIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBkPSJNMTIuNSAwQzUuNTkgMCAwIDUuNTkgMCAxMi41QzAgMjAuNiAxMi41IDQxIDEyLjUgNDFDMjIuNSAzMS42IDI1IDIwLjYgMjUgMTIuNUMyNSA1LjU5IDE5LjQgMCAxMi41IDBaIiBmaWxsPSIjMGI4N2ZmIi8+PGNpcmNsZSBjeD0iMTIuNSIgY3k9IjEyLjUiIHI9IjUiIGZpbGw9IndoaXRlIi8+PC9zdmc+',
-  iconSize: [25, 41], iconAnchor: [12, 41]
+  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIiBmaWxsPSJub25lIj4KPHBhdGggZD0iTTEyLjUgMEM1LjU5NjA0IDAgMCA1LjU5NjA0IDAgMTIuNUMwIDIwLjU5NjA0IDEyLjUgNDEgMTIuNSA0MUMyMi41IDMxLjU5NjA0IDI1IDIwLjU5NjA0IDI1IDEyLjVDMjUgNS41OTYwNCAxOS40MDM5IDAgMTIuNSAwWiIgZmlsbD0iIzEwYjk4MSIvPgo8Y2lyY2xlIGN4PSIxMi41IiBjeT0iMTIuNSIgcj0iOCIgZmlsbD0id2hpdGUiLz4KPC9zdmc+',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
 });
 
 const endIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIj48cGF0aCBkPSJNMTIuNSAwQzUuNTkgMCAwIDUuNTkgMCAxMi41QzAgMjAuNiAxMi41IDQxIDEyLjUgNDFDMjIuNSAzMS42IDI1IDIwLjYgMjUgMTIuNUMyNSA1LjU5IDE5LjQgMCAxMi41IDBaIiBmaWxsPSIjZmM1NjNhIi8+PGNpcmNsZSBjeD0iMTIuNSIgY3k9IjEyLjUiIHI9IjUiIGZpbGw9IndoaXRlIi8+PC9zdmc+',
-  iconSize: [25, 41], iconAnchor: [12, 41]
+  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNSIgaGVpZ2h0PSI0MSIgdmlld0JveD0iMCAwIDI1IDQxIiBmaWxsPSJub25lIj4KPHBhdGggZD0iTTEyLjUgMEM1LjU5NjA0IDAgMCA1LjU5NjA0IDAgMTIuNUMwIDIwLjU5NjA0IDEyLjUgNDEgMTIuNSA0MUMyMi41IDMxLjU5NjA0IDI1IDIwLjU5NjA0IDI1IDEyLjVDMjUgNS41OTYwNCAxOS40MDM5IDAgMTIuNSAwWiIgZmlsbD0iI2VmNDQ0NCIvPgo8Y2lyY2xlIGN4PSIxMi41IiBjeT0iMTIuNSIgcj0iOCIgZmlsbD0id2hpdGUiLz4KPC9zdmc+',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
 });
 
-
-// --- Types ---
-interface Trip {
-  id: string;
-  plate: string;
-  driver_name: string;
-  start_time: string;
-  end_time: string | null;
-  status: 'en_curso' | 'finalizado';
-  max_speed: number;
-  avg_speed: number;
-}
-
-interface TripLog {
-  lat: number;
-  lng: number;
-  speed: number;
-  created_at: string;
-}
-
 interface HistoryPanelProps {
-  userProfile: UserProfile | null;
+  trips: Trip[];
+  user: UserProfile | null;
 }
 
-// --- Component ---
-export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [selectedTrip, setSelectedTrip] = useState<{ trip: Trip; logs: TripLog[] } | null>(null);
-  const [loadingTrips, setLoadingTrips] = useState(true);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-  const [theme, setTheme] = useState(localStorage.getItem('mineconnect-theme') || 'dark');
+export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
+  const [selectedTrip, setSelectedTrip] = useState<{trip: Trip, logs: TripLog[], stops: any[]} | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
-  useEffect(() => {
-    const handleThemeChange = () => {
-        setTheme(localStorage.getItem('mineconnect-theme') || 'dark');
-    };
-    window.addEventListener('storage', handleThemeChange);
-    return () => window.removeEventListener('storage', handleThemeChange);
-  }, []);
+  const analyzeTrip = async (trip: Trip) => {
+    if (!trip?.id) return;
+    setLoading(true);
+    try {
+      const { data: logs, error } = await supabase
+        .from('trip_logs')
+        .select('*')
+        .eq('trip_id', trip.id)
+        .order('created_at', { ascending: true });
 
-  useEffect(() => {
-    const fetchTrips = async () => {
-      if (!userProfile) return;
+      if (error) throw error;
 
-      setLoadingTrips(true);
-      let query = supabase.from('trips').select('*');
-
-      // RBAC: Filter by company for Coordinators
-      if (userProfile.role === 'COORDINADOR') {
-        query = query.eq('company_id', userProfile.company_id);
+      if (logs) {
+        const stops = detectStops(logs);
+        setSelectedTrip({ trip, logs, stops });
       }
-      
-      // Superadmins see all trips, so no extra filter is needed.
-      query = query.eq('status', 'finalizado').order('start_time', { ascending: false });
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error fetching history trips:", error);
-        setTrips([]);
-      } else {
-        setTrips(data as Trip[]);
-      }
-      setLoadingTrips(false);
-    };
-
-    fetchTrips();
-    
-    // Realtime subscription
-    const channel = supabase
-      .channel('public:trips')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, fetchTrips)
-      .subscribe();
-      
-    return () => {
-        supabase.removeChannel(channel);
-    };
-
-  }, [userProfile]);
-
-  const handleAnalyzeTrip = async (trip: Trip) => {
-    setLoadingLogs(true);
-    setSelectedTrip({ trip, logs: [] }); // Show trip info immediately
-
-    const { data, error } = await supabase
-      .from('trip_logs')
-      .select('lat, lng, speed, created_at')
-      .eq('trip_id', trip.id)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error("Error fetching trip logs:", error);
-    } else {
-      setSelectedTrip({ trip, logs: data as TripLog[] });
+    } catch (error) {
+      console.error("Error al analizar:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoadingLogs(false);
   };
-  
+
+  const detectStops = (logs: TripLog[]) => {
+    const stops = [];
+    let currentStop: any = null;
+    for (let i = 0; i < logs.length; i++) {
+      const log = logs[i];
+      if (log.speed === 0 && !currentStop) {
+        currentStop = { lat: log.lat, lng: log.lng, startTime: log.created_at, duration: 0 };
+      } else if (log.speed > 0 && currentStop) {
+        const endTime = logs[i - 1].created_at;
+        const duration = new Date(endTime).getTime() - new Date(currentStop.startTime).getTime();
+        if (duration > 120000) { stops.push({ ...currentStop, duration }); }
+        currentStop = null;
+      }
+    }
+    return stops;
+  };
+
+
+  const generateReport = async () => {
+    if (!selectedTrip || pdfGenerating) return;
+    setPdfGenerating(true);
+    try {
+      const pdf = new jsPDF();
+      const mapElement = document.querySelector('.leaflet-container');
+      if (mapElement) {
+        const mapCanvas = await html2canvas(mapElement as HTMLElement, { backgroundColor: '#020617', scale: 2 });
+        pdf.addImage(mapCanvas.toDataURL('image/png'), 'PNG', 15, 140, 180, 100);
+      }
+      pdf.save(`MineConnect_Report_${selectedTrip.trip.plate}.pdf`);
+    } catch (e) { alert('Error generando PDF'); }
+    finally { setPdfGenerating(false); }
+  };
+
+  const isAdmin = user?.role === 'admin' || user?.email === 'fbarrosmarengo@gmail.com';
+  const completedTrips = trips.filter(t => t.status === 'finalizado');
   const polylinePositions = selectedTrip?.logs.map(log => [log.lat, log.lng] as [number, number]) || [];
-  
-  const isSuperAdmin = userProfile?.role === 'SUPERADMIN';
 
   return (
-    <div className={`h-screen flex flex-col p-4 lg:p-6 ${theme === 'dark' ? 'bg-slate-900' : 'bg-gray-100'}`}>
-        <header className="mb-4">
-            <h1 className={`text-2xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                <Clock/> Historial de Viajes
-                {isSuperAdmin && <span className="text-sm font-normal text-emerald-400">(SUPERADMIN)</span>}
-            </h1>
-        </header>
-
-        <div className="flex-1 flex gap-6 overflow-hidden">
-            {/* Trips List */}
-            <div className={``w-1/3 rounded-lg p-4 overflow-y-auto `${theme === 'dark' ? 'bg-slate-800/50' : 'bg-white'}`}>
-                {loadingTrips ? (
-                    <div className="flex justify-center items-center h-full"><Activity className="animate-spin text-blue-500"/></div>
-                ) : (
-                    <div className="space-y-3">
-                        {trips.map(trip => (
-                            <motion.div
-                                key={trip.id}
-                                whileHover={{ scale: 1.03 }}
-                                onClick={() => handleAnalyzeTrip(trip)}
-                                className={`p-4 rounded-lg cursor-pointer border ${
-                                    selectedTrip?.`trip.id` === `trip.id`
-                                        ? 'bg-blue-600 text-white border-blue-400'
-                                        : `${theme === 'dark' ? 'bg-slate-700 border-slate-600 hover:bg-slate-600' : 'bg-gray-200 border-gray-300 hover:bg-gray-300'}`
-                                }`}
-                            >
-                                <div className="flex justify-between items-center">
-                                    <p className="font-bold">{trip.plate}</p>
-                                    <p className="text-xs">{new Date(trip.start_time).toLocaleDateString()}</p>
-                                </div>
-                                <p className="text-xs opacity-70">{trip.driver_name}</p>
-                            </motion.div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Trip Details */}
-            <div className={``w-2/3 rounded-lg p-4 flex flex-col gap-4 overflow-y-auto `${theme === 'dark' ? 'bg-slate-800/50' : 'bg-white'}`}>
-                {loadingLogs && (
-                    <div className="flex justify-center items-center h-full"><Activity className="animate-spin text-blue-500"/></div>
-                )}
-                {!selectedTrip && !loadingLogs && (
-                    <div className="flex justify-center items-center h-full text-slate-500">Seleccione un viaje para ver los detalles.</div>
-                )}
-                {selectedTrip && (
-                    <>
-                        <h2 className="text-xl font-bold">{selectedTrip.trip.plate}</h2>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-700' : 'bg-gray-200'}`}>
-                                <p className="text-sm opacity-70">Velocidad Máx.</p>
-                                <p className="text-2xl font-bold">{Math.round(selectedTrip.trip.max_speed)} <span className="text-sm">km/h</span></p>
-                            </div>
-                            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-700' : 'bg-gray-200'}`}>
-                                <p className="text-sm opacity-70">Velocidad Prom.</p>
-                                <p className="text-2xl font-bold">{Math.round(selectedTrip.trip.avg_speed)} <span className="text-sm">km/h</span></p>
-                            </div>
-                        </div>
-                        <div className="h-96 rounded-lg overflow-hidden">
-                          {polylinePositions.length > 0 ? (
-                            <MapContainer center={polylinePositions[0]} zoom={13} style={{ height: '100%', width: '100%' }}>
-                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                <Polyline positions={polylinePositions} color="blue" />
-                                <Marker position={polylinePositions[0]} icon={startIcon}>
-                                    <Tooltip>Inicio</Tooltip>
-                                </Marker>
-                                <Marker position={polylinePositions[polylinePositions.length - 1]} icon={endIcon}>
-                                    <Tooltip>Fin</Tooltip>
-                                </Marker>
-                            </MapContainer>
-                          ) : (
-                            <div className="h-full flex items-center justify-center bg-slate-700 text-slate-400">No hay datos de ruta para mostrar.</div>
-                          )}
-                        </div>
-                    </>
-                )}
-            </div>
+    <div className="h-screen p-4 lg:p-6 bg-[#020617]">
+      <div className="h-full rounded-[2rem] border overflow-hidden flex flex-col bg-slate-900/95 border-slate-800 backdrop-blur-xl">
+        <div className="p-4 lg:p-8 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
+          <div>
+            <h2 className="text-2xl lg:text-3xl font-black flex items-center space-x-3 italic text-white">
+              {isAdmin ? <Globe className="text-emerald-400" /> : <FileText />}
+              <span>HISTORIAL SAT</span>
+              {isAdmin && <span className="text-sm text-emerald-400 font-normal ml-2">(GLOBAL)</span>}
+            </h2>
+          </div>
         </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          <div className="w-full sm:w-80 border-r border-slate-800 p-4 lg:p-6 overflow-y-auto space-y-4 bg-slate-900/20">
+            {completedTrips.map((trip) => (
+              <motion.div
+                key={trip.id}
+                onClick={() => analyzeTrip(trip)}
+                className={`p-4 lg:p-5 rounded-2xl border cursor-pointer transition-all ${
+                  selectedTrip?.trip.id === trip.id 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 border-blue-400 shadow-xl' 
+                    : 'bg-slate-800/50 border-slate-700 hover:border-blue-500'
+                }`}
+              >
+                <span className="text-lg font-black italic text-white">{trip.plate}</span>
+                <p className="text-[10px] font-black uppercase opacity-60 text-slate-400">{new Date(trip.start_time).toLocaleDateString()}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <div className="h-full flex flex-col items-center justify-center text-white italic">CARGANDO...</div>
+              ) : selectedTrip ? (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-6 rounded-3xl border bg-slate-800/50 border-blue-600/30">
+                      <TrendingUp className="text-blue-400 mb-2" />
+                      <p className="text-2xl font-black text-white">{Math.round(selectedTrip.trip.max_speed)}</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400">Km/h Max</p>
+                    </div>
+                    <div className="p-6 rounded-3xl border bg-slate-800/50 border-emerald-600/30">
+                      <Activity className="text-emerald-400 mb-2" />
+                      <p className="text-2xl font-black text-white">{Math.round(selectedTrip.trip.avg_speed)}</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400">Km/h Prom</p>
+                    </div>
+                  </div>
+
+                  {polylinePositions.length > 0 && (
+                    <div className="h-[450px] rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl relative z-0">
+                      <MapContainer center={polylinePositions[0]} zoom={15} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <Polyline positions={polylinePositions} color="#3b82f6" weight={4} />
+                        <Marker position={polylinePositions[0]} icon={startIcon} />
+                        <Marker position={polylinePositions[polylinePositions.length - 1]} icon={endIcon} />
+                      </MapContainer>
+                    </div>
+                  )}
+
+                  <motion.button
+                    onClick={generateReport}
+                    disabled={pdfGenerating}
+                    className="w-full py-5 rounded-2xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg disabled:opacity-50"
+                  >
+                    {pdfGenerating ? 'GENERANDO...' : 'GENERAR DOCUMENTACIÓN SAT'}
+                  </motion.button>
+                </motion.div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center opacity-20 text-white">
+                  <Navigation className="w-32 h-32 mb-4" />
+                  <p className="text-2xl font-black italic">ESPERANDO SELECCIÓN</p>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

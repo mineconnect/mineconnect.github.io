@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Clock, LogOut, Menu, Moon, Sun, Users, X, ShieldCheck, ChevronRight, Smartphone } from 'lucide-react';
+import { Activity, Clock, LogOut, Menu, Moon, Sun, Users, X, ShieldCheck, ChevronRight, User, Smartphone } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import DriverSimulator from './components/DriverSimulator';
 import HistoryPanel from './components/HistoryPanel';
@@ -175,8 +175,8 @@ function App() {
               {userProfile && (
                  <div className={`bg-gradient-to-br p-4 rounded-2xl flex items-center space-x-3 shadow-inner border ${theme === 'dark' ? 'from-slate-800/50 to-slate-900/50 border-slate-700' : 'from-gray-100/50 to-gray-200/50 border-gray-300'}`}>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg hardware-accelerated bg-gradient-to-br ${
-                      `userProfile.role` === 'SUPERADMIN' ? 'from-emerald-500 to-emerald-700' :
-                      `userProfile.role` === 'COORDINADOR' ? 'from-purple-500 to-purple-700' :
+                       userProfile.role === 'SUPERADMIN' ? 'from-emerald-500 to-emerald-700' :
+                       userProfile.role === 'COORDINADOR' ? 'from-purple-500 to-purple-700' :
                       'from-blue-500 to-blue-700'
                     }`}>
                       <User className="w-6 h-6" />
@@ -184,8 +184,8 @@ function App() {
                     <div className="overflow-hidden flex-1">
                       <p className={`text-sm font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{userProfile.full_name}</p>
                       <p className={`text-[10px] uppercase font-black tracking-widest ${
-                         `userProfile.role` === 'SUPERADMIN' ? 'text-emerald-400' :
-                         `userProfile.role` === 'COORDINADOR' ? 'text-purple-400' :
+                         userProfile.role === 'SUPERADMIN' ? 'text-emerald-400' :
+                         userProfile.role === 'COORDINADOR' ? 'text-purple-400' :
                          'text-slate-500'
                       }`}>
                         {userProfile.role}
@@ -212,7 +212,7 @@ function App() {
                     <item.icon className="w-5 h-5" />
                     <span className="font-bold text-sm">{item.label}</span>
                   </div>
-                   <ChevronRight className={`w-4 h-4 transition-transform ${activeView === `item.id` ? 'translate-x-0' : '-translate-x-2 opacity-0 group-hover:opacity-100'}`} />
+                    <ChevronRight className={`w-4 h-4 transition-transform ${activeView === item.id ? 'translate-x-0' : '-translate-x-2 opacity-0 group-hover:opacity-100'}`} />
                 </motion.button>
               ))}
             </nav>

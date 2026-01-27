@@ -1,245 +1,223 @@
+// src/App.tsx
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Clock, LogOut, Menu, Moon, Sun, Users, X, ShieldCheck, ChevronRight, User, Smartphone } from 'lucide-react';
+import { Clock, Users as UsersIcon, X, ChevronRight, Smartphone } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
-import DriverSimulator from './components/DriverSimulator';
+import Login from './components/Login';
 import HistoryPanel from './components/HistoryPanel';
 import UserManagement from './components/UserManagement';
-import Login from './components/Login';
+import DriverSimulator from './components/DriverSimulator';
 import type { Session, User } from '@supabase/supabase-js';
 
-// Define UserProfile type based on your DB structure
+// Tipo de usuario (proveniente de su proyecto; puedes ajustarlo si exportas en otro lugar)
 export interface UserProfile {
   id: string;
   full_name: string;
-  company_id: string;
+  company_id: string | null;
   role: 'SUPERADMIN' | 'COORDINADOR' | 'CONDUCTOR';
-  email?: string; // Add email to the profile
+  email?: string;
 }
 
-// Main App Component
+export interface Trip {
+  id: string;
+  plate: string;
+  driver_name: string;
+  start_time: string;
+  company_id: string;
+}
+
+export interface TripLog {
+  id: string;
+  trip_id: string;
+  lat: number;
+  lng: number;
+  timestamp: string;
+}
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [activeView, setActiveView] = useState<string>('');
+  const [activeView, setActiveView] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Tema fijo (no removemos el estilo)
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // --- Effects ---
+  // 1) Gatekeeper: verificar sesión y cargar perfil al inicio
   useEffect(() => {
-    // 1. Theme Initialization
-    const savedTheme = localStorage.getItem('mineconnect-theme') as 'dark' | 'light';
-    const initialTheme = savedTheme || 'dark';
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+    const init = async () => {
+      // Cargar tema
+      const savedTheme = localStorage.getItem('mineconnect-theme') as 'dark' | 'light';
+      const t = savedTheme ?? 'dark';
+      setTheme(t);
+      document.documentElement.classList.toggle('dark', t === 'dark');
 
-    // 2. Auth State Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setLoading(true);
-      setSession(session);
-      if (session?.user) {
-        await fetchUserProfile(session.user);
+      // Verificar sesión actual
+      const { data: { session: sess } } = await supabase.auth.getSession();
+      setSession(sess ?? null);
+
+      if (sess?.user) {
+        await fetchUserProfile(sess.user);
       } else {
         setUserProfile(null);
-        setActiveView(''); // Reset view on logout
       }
       setLoading(false);
-    });
-
-    return () => {
-      subscription?.unsubscribe();
     };
+    init();
   }, []);
 
-  // Set initial view based on role
+  // 2) Gatekeeper: escuchar cambios de sesión
   useEffect(() => {
-    if (userProfile) {
-      switch (userProfile.role) {
-        case 'SUPERADMIN':
-        case 'COORDINADOR':
-          setActiveView('history');
-          break;
-        case 'CONDUCTOR':
-          setActiveView('simulator');
-          break;
-        default:
-          setActiveView('');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_ev, sess) => {
+      setSession(sess);
+      if (sess?.user) {
+        await fetchUserProfile(sess.user);
+      } else {
+        setUserProfile(null);
+        setActiveView('dashboard');
       }
-    }
-  }, [userProfile]);
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
 
-  // --- Data Fetching ---
+  // 3) Carga de Perfil
   const fetchUserProfile = async (user: User) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error("Error fetching user profile:", error);
-      await handleLogout(); // Force logout if profile is missing
-      return;
-    }
-
-    if (data) {
-      const profile: UserProfile = { ...data, email: user.email };
-      // Override role for superadmin email
-      if (user.email === 'fbarrosmarengo@gmail.com') {
-        profile.role = 'SUPERADMIN';
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (error) {
+        // Si fuera el SUPERADMIN inexistente, crearlo brevemente
+        if (user.email === 'fbarrosmarengo@gmail.com') {
+          const { error: insertError } = await supabase.from('profiles').insert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
+            role: 'SUPERADMIN',
+            company_id: null
+          });
+          if (insertError) console.error('Error creando perfil de SuperAdmin', insertError);
+        }
+        setUserProfile(null);
+        return;
       }
-      setUserProfile(profile);
+      if (data) {
+        const profile: UserProfile = { ...data, email: user.email };
+        // Modo dios: si es el email del Super Admin, forzarlo
+        if (user.email === 'fbarrosmarengo@gmail.com') {
+          profile.role = 'SUPERADMIN';
+          profile.company_id = null;
+        }
+        setUserProfile(profile);
+        // Opcional: if (profile.role === 'SUPERADMIN') setActiveView('dashboard');
+      }
+    } catch (err) {
+      console.error('Error al obtener perfil', err);
+      setUserProfile(null);
     }
   };
 
-  // --- Handlers ---
+  // 4) Logout limpio
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // The onAuthStateChange listener will handle resetting state
+    setSession(null);
+    setUserProfile(null);
+    setActiveView('dashboard');
+    setSidebarOpen(false);
   };
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('mineconnect-theme', newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
-  };
+  // Theme toggle removed if not connected to UI
 
-  // --- RBAC ---
+  // 6) RBAC: Items visibles
   const navItems = [
-    { id: 'history', icon: Clock, label: 'Historial SAT', roles: ['SUPERADMIN', 'COORDINADOR'] },
-    { id: 'users', icon: Users, label: 'Gestión de Conductores', roles: ['SUPERADMIN', 'COORDINADOR'] },
-    { id: 'simulator', icon: Activity, label: 'Simulador Pro', roles: ['CONDUCTOR'] },
+    { id: 'dashboard', label: 'Dashboard', roles: ['SUPERADMIN','COORDINADOR'], icon: Smartphone },
+    { id: 'history', label: 'Historial SAT', roles: ['SUPERADMIN','COORDINADOR'], icon: Clock },
+    { id: 'users', label: 'Gestión de Usuarios', roles: ['SUPERADMIN','COORDINADOR'], icon: UsersIcon },
+    { id: 'simulator', label: 'Simulador Pro', roles: ['CONDUCTOR','SUPERADMIN','COORDINADOR'], icon: Smartphone }
   ];
+  const accessibleNavItems = userProfile ? navItems.filter(n => n.roles.includes(userProfile.role)) : [];
 
-  const accessibleNavItems = navItems.filter(item => userProfile && item.roles.includes(userProfile.role));
-
-  // --- Render Logic ---
+  // 7) Gatekeeper render
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Activity className="w-16 h-16 text-blue-500 animate-spin" />
+      <div className="h-screen bg-[#020617] text-white flex items-center justify-center">
+        Cargando...
       </div>
     );
   }
 
-  if (!session) {
-    return <Login />;
+  // Render gatekeeper: si no hay sesión o usuario, render Login
+  if (!session || !userProfile) {
+    return (
+      <LoginGatekeeper />
+    );
   }
-  
+
+  // Render de vistas (modo Dios afecta loadTrips/filters en Historia)
   const renderView = () => {
     switch (activeView) {
       case 'history':
-        return <HistoryPanel userProfile={userProfile} />;
+        return <HistoryPanel trips={[]} userProfile={userProfile} />;
       case 'users':
-        return <UserManagement userProfile={userProfile} />;
+        return <UserManagement userProfile={userProfile} onUserUpdate={() => {}} />;
       case 'simulator':
         return <DriverSimulator userProfile={userProfile} />;
       default:
+        // Dashboard placeholder
         return (
-            <div className="h-full flex items-center justify-center p-6">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-slate-400">Seleccione una opción del menú para comenzar.</h2>
-                </div>
+          <div className="h-full p-6">
+            <div className="bg-slate-800/60 border border-slate-700 rounded-3xl p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-slate-700 rounded-lg p-4 text-white">Unidades activas: 12</div>
+              <div className="bg-slate-700 rounded-lg p-4 text-white">Kilómetros: 52,000</div>
+              <div className="bg-slate-700 rounded-lg p-4 text-white">Viajes: 128</div>
+              <div className="bg-slate-700 rounded-lg p-4 text-white">Alertas: 3</div>
             </div>
+          </div>
         );
     }
   };
 
+  // Layout
   return (
-    <div className={`min-h-screen text-white flex overflow-hidden ${theme === 'dark' ? 'bg-[#020617]' : 'bg-gray-50 text-gray-900'}`}>
-      <AnimatePresence>
-        {(sidebarOpen || (typeof window !== 'undefined' && window.innerWidth > 1024)) && (
-          <motion.aside
-            initial={{ x: -300 }}
-            animate={{ x: 0 }}
-            exit={{ x: -300 }}
-            className={`w-72 border-r fixed lg:relative h-full z-20 flex flex-col ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-200'}`}
-          >
-            {/* Header */}
-            <div className={`p-6 border-b ${theme === 'dark' ? 'border-slate-800' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between mb-8">
-                 <div className="flex items-center space-x-2">
-                  <ShieldCheck className={`w-8 h-8 hardware-accelerated ${theme === 'dark' ? 'text-blue-500' : 'text-blue-600'}`} />
-                  <h1 className={`text-xl font-black tracking-tighter ${theme === 'dark' ? '' : 'text-gray-900'}`}>
-                    MINE<span className={theme === 'dark' ? 'text-blue-500' : 'text-blue-600'}>CONNECT</span> SAT
-                  </h1>
-                </div>
-                <button onClick={() => setSidebarOpen(false)} className={`lg:hidden p-2 rounded-lg ${theme === 'dark' ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}>
-                  <X className={`w-6 h-6 ${theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}`} />
-                </button>
+    <div className={`min-h-screen flex ${theme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
+      {/* Sidebar (visible para SUPERADMIN y COORDINADOR) */}
+      <aside className="w-64 border-r border-slate-700 bg-slate-900/90 text-white p-4 fixed h-full z-20 md:static md:h-auto">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-lg font-bold">MineConnect</div>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 rounded">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <nav className="mt-4 space-y-2">
+          {accessibleNavItems.map(n => (
+            <button key={n.id} onClick={() => setActiveView(n.id)} className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-slate-800">
+              <div className="flex items-center space-x-2">
+                <n.icon className="w-4 h-4" />
+                <span>{n.label}</span>
               </div>
-              
-              {/* User Profile */}
-              {userProfile && (
-                 <div className={`bg-gradient-to-br p-4 rounded-2xl flex items-center space-x-3 shadow-inner border ${theme === 'dark' ? 'from-slate-800/50 to-slate-900/50 border-slate-700' : 'from-gray-100/50 to-gray-200/50 border-gray-300'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg hardware-accelerated bg-gradient-to-br ${
-                       userProfile.role === 'SUPERADMIN' ? 'from-emerald-500 to-emerald-700' :
-                       userProfile.role === 'COORDINADOR' ? 'from-purple-500 to-purple-700' :
-                      'from-blue-500 to-blue-700'
-                    }`}>
-                      <User className="w-6 h-6" />
-                    </div>
-                    <div className="overflow-hidden flex-1">
-                      <p className={`text-sm font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{userProfile.full_name}</p>
-                      <p className={`text-[10px] uppercase font-black tracking-widest ${
-                         userProfile.role === 'SUPERADMIN' ? 'text-emerald-400' :
-                         userProfile.role === 'COORDINADOR' ? 'text-purple-400' :
-                         'text-slate-500'
-                      }`}>
-                        {userProfile.role}
-                      </p>
-                    </div>
-                  </div>
-              )}
-            </div>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          ))}
+        </nav>
+        <div className="mt-auto pt-4">
+          <button onClick={handleLogout} className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded">
+            Cerrar Sesión
+          </button>
+        </div>
+        <div className="mt-2 text-xs text-slate-400 text-center">
+          Modo Dios: {userProfile?.email === 'fbarrosmarengo@gmail.com' ? 'Activo' : 'No'}
+        </div>
+      </aside>
 
-            {/* Navigation */}
-            <nav className="p-4 flex-1 space-y-2 overflow-y-auto">
-              {accessibleNavItems.map((item) => (
-                <motion.button
-                  key={item.id}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => { setActiveView(item.id); setSidebarOpen(false); }}
-                  className={`w-full flex items-center justify-between px-4 py-4 rounded-xl transition-all group ${
-                    activeView === item.id
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg' 
-                      : `${theme === 'dark' ? 'text-slate-400 hover:bg-slate-800/50 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-bold text-sm">{item.label}</span>
-                  </div>
-                    <ChevronRight className={`w-4 h-4 transition-transform ${activeView === item.id ? 'translate-x-0' : '-translate-x-2 opacity-0 group-hover:opacity-100'}`} />
-                </motion.button>
-              ))}
-            </nav>
-            
-            {/* Footer */}
-            <div className={`p-4 border-t space-y-2 ${theme === 'dark' ? 'border-slate-800' : 'border-gray-200'}`}>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={toggleTheme} className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl transition-all ${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
-                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                    <span className="text-sm font-medium">{theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}</span>
-                </motion.button>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={handleLogout} className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl transition-all ${theme === 'dark' ? 'bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-600/20' : 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200'}`}>
-                    <LogOut className="w-5 h-5" />
-                    <span className="text-sm font-medium">Cerrar Sesión</span>
-                </motion.button>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+      {/* Main content */}
+      <main className="flex-1 ml-64 p-4 overflow-auto">{renderView()}</main>
 
-      <button onClick={() => setSidebarOpen(true)} className={`lg:hidden fixed top-6 left-6 z-10 p-3 rounded-full shadow-lg ${theme === 'dark' ? 'bg-blue-600' : 'bg-blue-500'}`}>
-        <Menu className="w-6 h-6 text-white" />
-      </button>
-
-      <main className="flex-1 relative h-screen overflow-y-auto">
-        {renderView()}
-      </main>
     </div>
+  );
+}
+
+// Gatekeeper login placeholder
+function LoginGatekeeper() {
+  return (
+    <Login />
   );
 }
 

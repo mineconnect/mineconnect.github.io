@@ -50,17 +50,27 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
         addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
         // Persist GPS log with company context for multi-tenant isolation
         try {
-          await (async () => {
-            await (async () => {
-              await supabase.from('gps_points').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
-            })()
-          })()
+          if (!tripId) {
+            addGPSLog('⚠ GPS: missing tripId, skipping insert')
+            return
+          }
+          const payload = { trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null }
+          console.log('DEBUG GPS PAYLOAD:', payload)
+          // Validate that the trip exists before insert
+          const check = await supabase.from('trips').select('id').eq('id', tripId).single()
+          if (check.data && check.data.id) {
+            await supabase.from('gps_points').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: payload.company_id })
+          } else {
+            addGPSLog('⚠ GPS: trip_id not found, skipping GPS insert')
+          }
         } catch (err) {
-          console.error('GPS insert to gps_points failed, falling back to trip_logs', err)
+          console.error('GPS insert error', err)
+          addGPSLog('⚠ GPS insert error, retrying later')
+          // Fallback: try trip_logs (legacy) if gps_points insert fails or table missing
           try {
-            await supabase.from('trip_logs').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
+            await supabase.from('trip_logs').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null })
           } catch (e) {
-            addGPSLog('⚠ GPS insert fallback failed');
+            addGPSLog('⚠ GPS insert fallback failed')
           }
         }
       },
@@ -74,6 +84,7 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
   };
 
   const startTracking = async () => {
+    console.log('Starting GPS tracking for user:', user?.id ?? 'unknown')
     if (!user) return setError('Usuario no autenticado');
     try {
       const tripCompanyId = user.email === 'fbarrosmarengo@gmail.com' ? '00000000-0000-0000-0000-000000000000' : user.company_id;

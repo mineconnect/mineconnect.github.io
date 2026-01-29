@@ -51,26 +51,26 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
         // Persist GPS log with company context for multi-tenant isolation
         try {
           if (!tripId) {
-            addGPSLog('⚠ GPS: missing tripId, skipping insert')
-            return
+            addGPSLog('⚠ GPS: missing tripId, skipping insert');
+            return;
           }
-          const payload = { trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null }
-          console.log('DEBUG GPS PAYLOAD:', payload)
+          const payload = { trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null };
+          console.log("DEBUG GPS PAYLOAD:", payload);
           // Validate that the trip exists before insert
-          const check = await supabase.from('trips').select('id').eq('id', tripId).single()
+          const check = await supabase.from('trips').select('id').eq('id', tripId).single();
           if (check.data && check.data.id) {
-            await supabase.from('gps_points').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: payload.company_id })
+            await supabase.from('gps_points').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: payload.company_id });
           } else {
-            addGPSLog('⚠ GPS: trip_id not found, skipping GPS insert')
+            addGPSLog('⚠ GPS: trip_id not found, skipping GPS insert');
           }
         } catch (err) {
-          console.error('GPS insert error', err)
-          addGPSLog('⚠ GPS insert error, retrying later')
+          console.error('GPS insert error', err);
+          addGPSLog('⚠ GPS insert error, retrying later');
           // Fallback: try trip_logs (legacy) if gps_points insert fails or table missing
           try {
-            await supabase.from('trip_logs').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null })
+            await supabase.from('trip_logs').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
           } catch (e) {
-            addGPSLog('⚠ GPS insert fallback failed')
+            addGPSLog('⚠ GPS insert fallback failed');
           }
         }
       },
@@ -84,10 +84,11 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
   };
 
   const startTracking = async () => {
-    console.log('Starting GPS tracking for user:', user?.id ?? 'unknown')
+    console.log('Starting GPS tracking for user:', user?.id ?? 'unknown');
     if (!user) return setError('Usuario no autenticado');
     try {
-      const tripCompanyId = user.email === 'fbarrosmarengo@gmail.com' ? '00000000-0000-0000-0000-000000000000' : user.company_id;
+      // Determinar company_id para la ejecución de trips
+      const tripCompanyId = user.email === 'fbarrosmarengo@gmail.com' ? (user.company_id ?? '') : (user.company_id ?? '');
       const { data, error: tripError } = await supabase.from('trips').insert({
         plate: user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001',
         vehicle_id: crypto.randomUUID(),

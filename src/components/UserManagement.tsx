@@ -16,20 +16,20 @@ async function createUserViaEdge(
   role: string,
   companyId?: string | null
 ): Promise<any> {
-  // Get current session token from Supabase client, if available
-  const token = (typeof window !== 'undefined' && (window as any).supabase)
-    ? (window as any).supabase.auth?.getSession?.().then((s: any) => s?.data?.session?.access_token)
-    : Promise.resolve(null)
-  const t = await token
+  // Get current session token using stable shape
+  const { data: sessionObj } = await (supabase as any).auth.getSession()
+  const session = sessionObj?.session
+  const t = session?.access_token ?? null
+  const anonKey = (import.meta.env as any).VITE_SUPABASE_ANON_KEY ?? ''
   const base = (typeof window !== 'undefined' ? (import.meta.env as any).VITE_SUPABASE_FUNCTIONS_URL : '') || ''
   const url = `${base.replace(/\\$/, '')}/create_user`
   const payload = { email, password, full_name: fullName, role, company_id: companyId ?? null }
+  const headers: any = { 'Content-Type': 'application/json' }
+  if (t) headers['Authorization'] = `Bearer ${t}`
+  if (anonKey) headers['apikey'] = anonKey
   const resp = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(t ? { 'Authorization': `Bearer ${t}` } : {})
-    },
+    headers,
     body: JSON.stringify(payload)
   })
   if (!resp.ok) {

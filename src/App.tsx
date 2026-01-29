@@ -99,72 +99,63 @@ function App() {
           </div>
         </div>
 
-        {/* Earth - Low Earth Orbit View */}
-        <div className="absolute inset-0">
-          <div className="absolute w-[200vw] h-[200vh] -top-1/2 -left-1/2">
-            {/* Earth Surface - Close Up Orbital View */}
+        {/* Earth - Centered 4K Globe */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative w-[80vw] h-[80vw] max-w-[800px] max-h-[800px]">
+            {/* Earth Sphere - Perfectly Centered */}
             <div 
-              className="absolute inset-0 earth-orbit-view"
+              className="absolute inset-0 rounded-full overflow-hidden earth-globe"
               style={{
-                backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=3000&h=2000&fit=crop&q=100')`,
+                backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=4000&h=4000&fit=crop&q=100')`,
                 backgroundSize: '120% 120%',
-                backgroundPosition: '35% 45%',
-                boxShadow: 'inset -80px -80px 160px rgba(0,0,0,0.9), inset 40px 40px 80px rgba(100,200,255,0.3)'
+                backgroundPosition: 'center 40%',
+                boxShadow: 'inset -50px -50px 100px rgba(0,0,0,0.8), inset 30px 30px 60px rgba(100,200,255,0.15), 0 0 100px rgba(100,150,255,0.1)'
               }}
             >
-              {/* Enhanced Cloud Layer with Shadows */}
+              {/* High-Resolution Cloud Layer */}
               <div 
-                className="absolute inset-0 opacity-70"
+                className="absolute inset-0 opacity-60"
                 style={{
-                  backgroundImage: `url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=3000&h=2000&fit=crop&q=100')`,
+                  backgroundImage: `url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=4000&h=4000&fit=crop&q=100')`,
                   backgroundSize: '120% 120%',
-                  backgroundPosition: '35% 40%',
+                  backgroundPosition: 'center 35%',
                   mixBlendMode: 'screen',
-                  filter: 'blur(0.8px) brightness(1.1) contrast(1.1)'
+                  filter: 'blur(0.6px) brightness(1.15) contrast(1.1)'
                 }}
               />
 
-              {/* Mountain Ranges and Relief Enhancement */}
+              {/* Continent Relief Enhancement */}
               <div 
-                className="absolute inset-0 opacity-30"
+                className="absolute inset-0 opacity-25"
                 style={{
-                  background: 'linear-gradient(135deg, transparent 0%, rgba(139,69,19,0.1) 25%, transparent 50%, rgba(34,139,34,0.1) 75%, transparent 100%)',
+                  background: 'radial-gradient(circle at 35% 50%, rgba(34,139,34,0.15) 0%, transparent 30%, rgba(139,69,19,0.1) 50%, transparent 70%, rgba(34,139,34,0.08) 100%)',
                   mixBlendMode: 'multiply'
                 }}
               />
               
-              {/* Prominent Atmospheric Glow */}
+              {/* Atmospheric Glow - Soft Blue Ring */}
               <div 
-                className="absolute inset-0"
+                className="absolute inset-0 rounded-full"
                 style={{
-                  background: 'radial-gradient(ellipse at 50% 30%, rgba(100,150,255,0.4) 0%, rgba(50,120,220,0.3) 30%, transparent 60%)',
-                  filter: 'blur(4px)'
+                  background: 'radial-gradient(circle at 50% 50%, transparent 70%, rgba(100,150,255,0.3) 85%, rgba(50,120,220,0.2) 95%, transparent 100%)',
+                  filter: 'blur(3px)'
                 }}
               />
               
-              {/* Intense Blue Rim Atmosphere */}
+              {/* Fine Atmospheric Rim */}
               <div 
-                className="absolute inset-0"
+                className="absolute inset-0 rounded-full"
                 style={{
-                  background: 'radial-gradient(ellipse at 50% 30%, transparent 50%, rgba(100,200,255,0.6) 70%, rgba(50,150,255,0.8) 85%, transparent 95%)',
-                  filter: 'blur(2px)'
+                  background: 'radial-gradient(circle at 50% 50%, transparent 85%, rgba(100,200,255,0.4) 92%, rgba(50,150,255,0.6) 98%, transparent 100%)',
+                  filter: 'blur(1px)'
                 }}
               />
               
-              {/* Orbital Sunset - Orange Terminated */}
+              {/* Soft Day/Night Transition */}
               <div 
-                className="absolute inset-0"
+                className="absolute inset-0 rounded-full"
                 style={{
-                  background: 'linear-gradient(90deg, rgba(0,0,0,0.8) 0%, rgba(255,94,0,0.2) 20%, transparent 40%, rgba(255,150,0,0.1) 60%, rgba(0,0,0,0.6) 100%)',
-                  mixBlendMode: 'overlay'
-                }}
-              />
-              
-              {/* Deep Shadow and Curvature */}
-              <div 
-                className="absolute inset-0"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 25%, transparent 50%, rgba(0,0,0,0.3) 75%, rgba(0,0,0,0.9) 100%)',
+                  background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 20%, transparent 50%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0.7) 100%)',
                   mixBlendMode: 'multiply'
                 }}
               />
@@ -260,8 +251,8 @@ function App() {
             animation: drift 300s linear infinite;
           }
           
-          .earth-orbit-view {
-            animation: orbital-drift 180s ease-in-out infinite;
+          .earth-globe {
+            animation: gentle-rotate 240s ease-in-out infinite;
           }
           
           @keyframes drift {
@@ -269,18 +260,18 @@ function App() {
             to { transform: translateX(-1200px); }
           }
           
-          @keyframes orbital-drift {
+          @keyframes gentle-rotate {
             0%, 100% { 
-              transform: translateX(0) translateY(0) scale(1); 
+              transform: rotate(0deg) scale(1); 
             }
             25% { 
-              transform: translateX(-2%) translateY(-1%) scale(1.02); 
+              transform: rotate(-1deg) scale(1.01); 
             }
             50% { 
-              transform: translateX(2%) translateY(-0.5%) scale(1.01); 
+              transform: rotate(0deg) scale(1); 
             }
             75% { 
-              transform: translateX(1%) translateY(1%) scale(1.02); 
+              transform: rotate(1deg) scale(1.01); 
             }
           }
         `}</style>

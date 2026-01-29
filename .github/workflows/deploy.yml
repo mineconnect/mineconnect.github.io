@@ -28,46 +28,81 @@ jobs:
       env:
         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
         VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      
+    - name: Debug build output
+      run: |
+        echo "📁 Contents of dist directory:"
+        ls -la dist/
+        echo ""
+        echo "📄 Contents of dist/index.html:"
+        head -20 dist/index.html
 
     - name: Create final deploy structure
       run: |
         # Create final deploy directory
-        mkdir -p final-deploy
-        
-        # Copy React App build to sat/ subdirectory
         mkdir -p final-deploy/sat
-        cp -r dist/* final-deploy/sat/
         
-        # Copy root static files (landing page)
-        if [ -f index.html ]; then
-          cp index.html final-deploy/
+        # Copy built files to the deployment subdirectory
+        echo "📁 Moving dist to final-deploy/sat/"
+        cp -r dist/. final-deploy/sat/
+        
+        # Ensure PWA assets (manifest and icons) are included under the sat/ path
+        echo "🔎 Ensuring PWA assets are included in sat/"
+        if [ -f dist/manifest.json ]; then
+          cp dist/manifest.json final-deploy/sat/
+        elif [ -f public/manifest.json ]; then
+          cp public/manifest.json final-deploy/sat/
         fi
-        
-        # Copy images and other static files from public directory
-        find public -maxdepth 1 -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.svg" -o -name "*.ico" | while read file; do
-          cp "$file" final-deploy/
+        for icon in pwa-192x192.png pwa-512x512.png vite.svg; do
+          if [ -f dist/$icon ]; then
+            cp dist/$icon final-deploy/sat/
+          elif [ -f public/$icon ]; then
+            cp public/$icon final-deploy/sat/
+          fi
+        done
+        # Optional extra static assets from public/dist if present
+        for f in pwa-styles.css; do
+          if [ -f dist/$f ]; then cp dist/$f final-deploy/sat/; fi
         done
         
         # Copy CNAME if exists
         if [ -f CNAME ]; then
+          echo "🌐 Copying CNAME"
           cp CNAME final-deploy/
-        fi
-        
-        # Copy manifest.json if exists
-        if [ -f manifest.json ]; then
-          cp manifest.json final-deploy/
         fi
         
         # Add .nojekyll for GitHub Pages
         touch final-deploy/.nojekyll
         touch final-deploy/sat/.nojekyll
         
-        # List final structure
-        echo "Final deploy structure:"
+        # Verify critical files exist
+        echo "🔍 Verifying critical files:"
+        ls -la final-deploy/sat/
+        echo "📋 Final deploy structure:"
         find final-deploy -type f | head -20
+        
+        # Verify key files for PWA
+        if [ -f final-deploy/sat/manifest.json ]; then
+          echo "✅ manifest.json found in sat/"
+        else
+          echo "❌ manifest.json MISSING in sat/"
+        fi
 
     - name: Setup Pages
       uses: actions/configure-pages@v3
+
+    - name: Verify final structure before upload
+      run: |
+        echo "🔍 Final verification before upload:"
+        echo "📁 final-deploy contents:"
+        find final-deploy -type f | sort
+        echo ""
+        echo "📱 Checking sat/ directory:"
+        ls -la final-deploy/sat/
+        echo ""
+        echo "🔍 Checking for critical files:"
+        [ -f final-deploy/sat/index.html ] && echo "✅ sat/index.html exists" || echo "❌ sat/index.html MISSING"
+        [ -f final-deploy/sat/manifest.json ] && echo "✅ sat/manifest.json exists" || echo "❌ sat/manifest.json MISSING"
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v2

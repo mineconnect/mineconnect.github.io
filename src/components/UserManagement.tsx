@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Plus, Edit, Trash, Shield, AlertTriangle } from 'lucide-react';
+import { Users, Plus, Edit, Trash, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import type { UserProfile } from '../App'; // Import from App.tsx
 

@@ -70,9 +70,9 @@ function App() {
   const fetchUserProfile = async (user: User) => {
     console.log('Buscando perfil para usuario:', user.id);
     
-    // Crear un timeout de 5 segundos
+    // Crear un timeout de 20 segundos
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Timeout: El perfil tardó demasiado en cargar')), 5000);
+      setTimeout(() => reject(new Error('Timeout: El perfil tardó demasiado en cargar')), 20000);
     });
 
     try {
@@ -137,8 +137,10 @@ function App() {
       }
     } catch (timeoutError: any) {
       console.error('Timeout al cargar perfil:', timeoutError);
-      setAuthError('La carga del perfil tardó demasiado. Inténtalo de nuevo.');
-      setLoading(false);
+      // No mostrar error inmediatamente, solo log y seguir esperando
+      // El perfil puede llegar después del timeout
+      console.log('Esperando perfil después del timeout...');
+      // No hacer setLoading(false) aquí para permitir que la petición continúe
     }
   };
 

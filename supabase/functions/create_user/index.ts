@@ -7,7 +7,8 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
 }
 
 async function getCallerFromToken(token: string | null) {
@@ -38,6 +39,7 @@ async function handler(req: Request) {
   }
 
   const body = await req.json()
+  console.log('Edge create_user: request body', body)
   const { email, password, full_name, role, company_id } = body
   // Normalize role and determine company_id for insert
   const roleValue = (role === 'admin' || role === 'coordinator' || role === 'conductor') ? role : 'conductor'

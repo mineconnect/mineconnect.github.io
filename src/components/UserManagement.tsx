@@ -1,22 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Users, Plus } from 'lucide-react'
-import { supabase } from '../lib/supabaseClient'
 import { UserProfile } from '../App' // exportado en App.tsx
+import { supabase } from '../lib/supabaseClient'
 
 type UserManagementProps = {
   userProfile: UserProfile | null
 }
 
-export default function UserManagement({ userProfile }: UserManagementProps) {
+function UserManagement({ userProfile }: UserManagementProps) {
   const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchProfiles = async () => {
+  async function loadProfiles() {
     setLoading(true)
     let query = supabase.from('profiles').select('*')
-    if (userProfile?.role !== 'admin') {
-      query = query.eq('company_id', userProfile?.company_id)
-    }
+    if (userProfile?.role !== 'admin') query = query.eq('company_id', userProfile?.company_id)
     const { data, error } = await query.order('full_name')
     if (error) {
       setProfiles([])
@@ -27,7 +24,7 @@ export default function UserManagement({ userProfile }: UserManagementProps) {
   }
 
   useEffect(() => {
-    if (userProfile) fetchProfiles()
+    if (userProfile) loadProfiles()
   }, [userProfile])
 
   if (loading) return <div>Loading users…</div>
@@ -36,37 +33,43 @@ export default function UserManagement({ userProfile }: UserManagementProps) {
     <div className="p-4 lg:p-6 h-full">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Users /> Gestión de Conductores
+          MineConnect SAT Pro - Conductores
         </h1>
-        <button onClick={() => { /* abre modal para crear usuario si existe */ }} className="bg-blue-600 text-white px-4 py-2 rounded-lg">
-          <Plus size={18} /> Nuevo Conductor
-        </button>
       </div>
 
-      <div className="bg-slate-800 rounded-lg overflow-hidden">
-        {profiles.length > 0 ? (
-          <table className="min-w-full divide-y divide-slate-700">
-            <thead className="bg-slate-700/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Nombre</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Empresa</th>
+      <div className="bg-slate-800 rounded-lg overflow-hidden" style={{ padding: 16 }}>
+        <table className="min-w-full divide-y divide-slate-700">
+          <thead className="bg-slate-700/50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Nombre</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Email</th>
+              {userProfile?.role === 'admin' && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Acciones</th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="bg-slate-800/50 divide-y divide-slate-700">
+            {profiles.map((user) => (
+              <tr key={user.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{user.full_name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{user.email}</td>
+                {userProfile?.role === 'admin' && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <button
+                      onClick={() => {}}
+                      className="text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                )}
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700">
-              {profiles.map(p => (
-                <tr key={p.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{p.full_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{p.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{p.company_id ?? ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="p-4 text-center text-slate-400">No se encontraron usuarios</div>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default UserManagement;

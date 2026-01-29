@@ -7,7 +7,8 @@ import type { Trip } from '../types'
 import { UserProfile } from '../App'
 
 type HistoryPanelProps = {
-  userProfile: UserProfile | null
+  trips?: Trip[]
+  user?: UserProfile | null
 }
 
 type GPSPointDB = {
@@ -20,38 +21,34 @@ type GPSPointDB = {
   created_at?: string
 }
 
-export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
+export default function HistoryPanel({ user }: HistoryPanelProps) {
   const [trips, setTrips] = useState<Trip[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [points, setPoints] = useState<GPSPointDB[]>([])
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
-  const channelRef = useRef<any>(null)
 
-  // Real-time: suscripción a gps_points usando Supabase v2 channel
+  // Real-time: Suscripción con Supabase v2 (Postgres Changes)
   useEffect(() => {
     fetchTrips()
-
-    const companyFilter = userProfile?.company_id
     const channel = supabase.channel('gps_updates')
-    channel
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gps_points' }, payload => {
+    channel.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'gps_points' },
+      payload => {
         const newPoint = payload.new as GPSPointDB
         if (!newPoint) return
-        if (companyFilter && newPoint.company_id !== companyFilter) return
+        if (user?.company_id && newPoint.company_id !== user.company_id) return
         if (selectedTrip && selectedTrip.id === newPoint.trip_id) {
           loadPointsForTrip(newPoint.trip_id)
         }
-      })
-      .subscribe()
-      channelRef.current = channel
-    return () => {
-      if (channelRef.current) channelRef.current.unsubscribe()
-      // no promises to return
-    }
+      }
+    ).subscribe()
+    // cleanup con llaves
+    return () => { channel.unsubscribe() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile, selectedTrip?.id])
+  }, [user, selectedTrip?.id])
 
   // Abrir modal al seleccionar un viaje
   useEffect(() => {
@@ -60,7 +57,6 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
       setModalOpen(true)
       initMapIfNeeded()
       loadPointsForTrip(selectedTrip.id)
-      // forzar redraw
       if (mapRef.current) mapRef.current.invalidateSize?.()
     }
   }, [selectedTrip])
@@ -73,16 +69,6 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapRef.current!)
-  }
-
-  function clearMap() {
-    if (mapRef.current) {
-      mapRef.current.eachLayer((layer) => {
-        if ((layer as any).remove) (layer as any).remove()
-      })
-      mapRef.current.remove()
-      mapRef.current = null
-    }
   }
 
   function drawPathOnMap(pointsToPlot: GPSPointDB[]) {
@@ -102,15 +88,17 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
   }
 
   async function fetchTrips() {
-    const { data, error } = await supabase.from('trips').select('*')
+    setLoading(true)
+    let q = supabase.from('trips').select('*')
+    if (user?.role !== 'admin') q = q.eq('company_id', user?.company_id)
+    const { data, error } = await q.order('start_time', { ascending: true })
     if (error) {
       console.error('Error fetching trips', error)
       setTrips([])
     } else {
-      // Admin sees all; others filtered by company
-      if (userProfile?.role === 'admin') setTrips(data as Trip[])
-      else setTrips((data as Trip[]).filter(t => t.company_id === userProfile?.company_id))
+      setTrips(data as Trip[])
     }
+    setLoading(false)
   }
 
   async function loadPointsForTrip(tripId: string) {
@@ -128,12 +116,10 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
     setModalOpen(false)
     setSelectedTrip(null)
     setPoints([])
-    clearMap()
   }
 
-  useEffect(() => { fetchTrips() }, [userProfile])
+  useEffect(() => { fetchTrips() }, [user])
 
-  // Contenedor mapa
   const mapContainerStyle: React.CSSProperties = { height: 400, width: '100%', zIndex: 1000 }
 
   return (
@@ -149,7 +135,7 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
 
       {modalOpen && selectedTrip && (
         <Modal onClose={closeModal} title={`Trip ${selectedTrip.id} Details`}>
-          <div id={`map-${selectedTrip.id}`} style={mapContainerStyle} ref={undefined} />
+          <div id={`map-${selectedTrip.id}`} style={mapContainerStyle} ref={mapContainerRef} />
           <div style={{ paddingTop: 8 }}>
             <strong>Points:</strong> {points.length}
           </div>

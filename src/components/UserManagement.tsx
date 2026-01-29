@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Plus, Edit, Trash, AlertTriangle } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
-import type { UserProfile } from '../App'; // Import from App.tsx
+import React, { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Users, Plus, Edit, Trash, AlertTriangle } from 'lucide-react'
+import { supabase } from '../lib/supabaseClient'
+import type { UserProfile } from '../App'
 
 interface UserManagementProps {
-  userProfile: UserProfile | null;
+  userProfile: UserProfile | null
 }
 
 // Helper: create user via Edge Function
@@ -16,23 +16,22 @@ async function createUserViaEdge(
   role: string,
   companyId?: string | null
 ): Promise<any> {
-  // Get current session token
-  const { data: sessionData } = await (supabase as any).auth.getSession()
-  const token = sessionData?.session?.access_token ?? null
-
-  const base = (import.meta.env as any).VITE_SUPABASE_FUNCTIONS_URL || ''
+  // Get current session token from Supabase client, if available
+  const token = (typeof window !== 'undefined' && (window as any).supabase)
+    ? (window as any).supabase.auth?.getSession?.().then((s: any) => s?.data?.session?.access_token)
+    : Promise.resolve(null)
+  const t = await token
+  const base = (typeof window !== 'undefined' ? (import.meta.env as any).VITE_SUPABASE_FUNCTIONS_URL : '') || ''
   const url = `${base.replace(/\\$/, '')}/create_user`
   const payload = { email, password, full_name: fullName, role, company_id: companyId ?? null }
-
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      ...(t ? { 'Authorization': `Bearer ${t}` } : {})
     },
     body: JSON.stringify(payload)
   })
-
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
     throw new Error(err?.error ?? `Edge function error: ${resp.status}`)
@@ -41,162 +40,134 @@ async function createUserViaEdge(
 }
 
 export default function UserManagement({ userProfile }: UserManagementProps) {
-  const [drivers, setDrivers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingDriver, setEditingDriver] = useState<UserProfile | null>(null);
+  const [drivers, setDrivers] = useState<UserProfile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingDriver, setEditingDriver] = useState<UserProfile | null>(null)
 
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   // Admin: field to specify company id for new users
-  const [adminCompany, setAdminCompany] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [adminCompany, setAdminCompany] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
-  const isSuperAdmin = userProfile?.role === 'admin';
-const isCoordinator = userProfile?.role === 'coordinator';
+  const isSuperAdmin = userProfile?.role === 'admin'
+  const isCoordinator = userProfile?.role === 'coordinator'
 
-// Available roles according to caller's role
-const availableRoles = userProfile?.role === 'admin'
-  ? ['coordinator', 'conductor']
-  : userProfile?.role === 'coordinator'
-    ? ['conductor']
-    : []
+  const availableRoles = isSuperAdmin
+    ? ['coordinator', 'conductor']
+    : isCoordinator
+      ? ['conductor']
+      : []
 
-const [selectedRole, setSelectedRole] = useState<string>(availableRoles[0] ?? '')
-useEffect(() => {
-  if (availableRoles.length > 0 && (!selectedRole || !availableRoles.includes(selectedRole))) {
-    setSelectedRole(availableRoles[0])
-  }
-}, [availableRoles])
-
+  const [selectedRole, setSelectedRole] = useState<string>(availableRoles[0] ?? '')
   useEffect(() => {
-    if (isSuperAdmin || isCoordinator) {
-      fetchDrivers();
+    if (availableRoles.length > 0 && (!selectedRole || !availableRoles.includes(selectedRole))) {
+      setSelectedRole(availableRoles[0])
     }
-  }, [userProfile]);
+  }, [availableRoles])
+
+  // Fetch drivers with multi-tenant filter
+  useEffect(() => {
+    if (isSuperAdmin || isCoordinator) fetchDrivers()
+  }, [userProfile])
 
   const fetchDrivers = async () => {
-    if (!userProfile) return;
-    setLoading(true);
-
-    let query = supabase.from('profiles').select('*').eq('role', 'CONDUCTOR');
-    // Multi-tenant: coordinators see only their company's conductors
+    if (!userProfile) return
+    setLoading(true)
+    let query = supabase.from('profiles').select('*').eq('role', 'CONDUCTOR')
+    // Coordinators see only their company
     if (userProfile?.role !== 'admin') {
-      query = query.eq('company_id', userProfile?.company_id);
+      query = query.eq('company_id', userProfile?.company_id)
     }
-    // Superadmin will see all drivers from all companies
-
-    const { data, error } = await query.order('full_name');
-    
+    const { data, error } = await query.order('full_name')
     if (error) {
-      console.error("Error fetching drivers:", error);
-      setError("No se pudieron cargar los conductores.");
+      console.error('Error fetching drivers:', error)
+      setError('No se pudieron cargar los conductores.')
     } else {
-      setDrivers(data as UserProfile[]);
+      setDrivers(data as UserProfile[])
     }
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   const resetForm = () => {
-    setFullName('');
-    setEmail('');
-    setPassword('');
-    setEditingDriver(null);
-    setIsFormOpen(false);
-    setError(null);
-    setAdminCompany('');
-  };
+    setFullName('')
+    setEmail('')
+    setPassword('')
+    setEditingDriver(null)
+    setIsFormOpen(false)
+    setError(null)
+    setAdminCompany('')
+  }
 
   const handleEdit = (driver: UserProfile) => {
-    setEditingDriver(driver);
-    setFullName(driver.full_name);
-    setEmail(driver.email || '');
-    setPassword('');
-    setIsFormOpen(true);
-  };
+    setEditingDriver(driver)
+    setFullName(driver.full_name)
+    setEmail(driver.email ?? '')
+    setPassword('')
+    setIsFormOpen(true)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!fullName || !email || (!password && !editingDriver)) {
-      setError("Por favor, completa todos los campos requeridos.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
-    // Admin must specify company for Admin path
-    if (isSuperAdmin && adminCompany.trim() === '') {
-      setError('Por favor, ingresa la Empresa (Company ID).')
-      setLoading(false)
+      setError('Por favor, completa todos los campos requeridos.')
       return
     }
+    if (isSuperAdmin && adminCompany.trim() === '') {
+      setError('Por favor, ingresa la Empresa (Company ID).')
+      return
+    }
+    setLoading(true)
+    setError(null)
 
     try {
       if (editingDriver) {
-        // Update existing user
         const { error: profileError } = await supabase
           .from('profiles')
           .update({ full_name: fullName })
-          .eq('id', editingDriver.id);
-
-        if (profileError) throw profileError;
-
+          .eq('id', editingDriver.id)
+        if (profileError) throw profileError
         if (password) {
-          // This requires special Supabase permissions. Assuming they are set.
-          const { error: authError } = await supabase.auth.admin.updateUserById(editingDriver.id, { password });
-          if (authError) throw authError;
+          const { error: authError } = await supabase.auth.admin.updateUserById(editingDriver.id, { password })
+          if (authError) throw authError
         }
-
       } else {
-        // Create nuevo usuario via Edge Function
+        // Determine company_id for edge function call
         let companyIdParam: string | null = null
-        if (isSuperAdmin) {
-          companyIdParam = adminCompany || null
-        } else if (isCoordinator) {
-          companyIdParam = userProfile?.company_id ?? null
-        }
+        if (isSuperAdmin) companyIdParam = adminCompany || null
+        else if (isCoordinator) companyIdParam = userProfile?.company_id ?? null
         const edgeRes = await createUserViaEdge(email, password, fullName, selectedRole, companyIdParam)
         if (edgeRes?.error) throw edgeRes.error
         const newUserId = edgeRes?.user?.id
-        if (!newUserId) throw new Error("Could not create user.")
-        // Se asume que la Edge Function ya inserta el perfil; solo validamos éxito.
+        if (!newUserId) throw new Error('Could not create user.')
       }
-      
-      resetForm();
-      fetchDrivers();
-
+      resetForm()
+      fetchDrivers()
     } catch (err: any) {
-      console.error("Error saving driver:", err);
-      setError(err.message || "Ocurrió un error al guardar el conductor.");
+      console.error('Error saving driver:', err)
+      setError(err.message || 'Ocurrió un error al guardar el conductor.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleDelete = async (driverId: string) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar a este conductor? Esta acción es irreversible.")) {
-      setLoading(true);
-      // First delete profile, then auth user to avoid foreign key issues.
-      const { error: profileError } = await supabase.from('profiles').delete().eq('id', driverId);
+    if (window.confirm('¿Estás seguro de que quieres eliminar a este conductor? Esta acción es irreversible.')) {
+      setLoading(true)
+      const { error: profileError } = await supabase.from('profiles').delete().eq('id', driverId)
       if (profileError) {
-        setError("Error al eliminar el perfil.");
-        setLoading(false);
-        return;
+        setError('Error al eliminar el perfil.')
+        setLoading(false)
+        return
       }
-      
-      const { error: authError } = await supabase.auth.admin.deleteUser(driverId);
-      if (authError) {
-          // Profile was deleted, but auth user wasn't. Might need manual cleanup.
-          setError("Perfil eliminado, pero hubo un error al eliminar la cuenta de autenticación.");
-      }
-      
-      fetchDrivers();
-      setLoading(false);
+      await supabase.auth.admin.deleteUser(driverId)
+      fetchDrivers()
+      setLoading(false)
     }
-  };
+  }
 
-  // Render Guard
   if (!isSuperAdmin && !isCoordinator) {
     return (
       <div className="p-6 text-center text-slate-500">
@@ -204,7 +175,7 @@ useEffect(() => {
         <h3 className="mt-2 text-lg font-medium text-white">Acceso Denegado</h3>
         <p>No tienes los permisos necesarios para gestionar conductores.</p>
       </div>
-    );
+    )
   }
 
   return (
@@ -224,23 +195,28 @@ useEffect(() => {
               <input type="text" placeholder="Nombre Completo" value={fullName} onChange={e => setFullName(e.target.value)} required className="p-2 rounded bg-slate-700 text-white border border-slate-600" />
               <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingDriver} className="p-2 rounded bg-slate-700 text-white border border-slate-600 disabled:opacity-50" />
             </div>
-            <input type="password" placeholder={editingDriver ? 'Nueva Contraseña (opcional)' : 'Contraseña'} value={password} onChange={e => setPassword(e.target.value)} required={!editingDriver} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600" />
-            {isSuperAdmin && (
-              <div className="mt-2">
-                <label className="block text-sm text-white mb-1">Empresa (Company ID)</label>
-                <input type="text" placeholder="Company ID" value={adminCompany} onChange={e => setAdminCompany(e.target.value)} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600" />
-              </div>
-            )}
-            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <select value={selectedRole} onChange={e => setSelectedRole(e.target.value)} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600">
+                {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              {isSuperAdmin && (
+                <div className="mt-2">
+                  <label className="block text-sm text-white mb-1">Empresa (Company ID)</label>
+                  <input type="text" placeholder="Company ID" value={adminCompany} onChange={e => setAdminCompany(e.target.value)} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600" />
+                </div>
+              )}
+            </div>
+            <input type="password" placeholder={"Contraseña"} value={password} onChange={e => setPassword(e.target.value)} required={!editingDriver} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600" />
             {error && <p className="text-red-400 text-sm">{error}</p>}
-
             <div className="flex gap-4">
-              <button type="submit" disabled={loading} className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50">{loading ? "Guardando..." : "Guardar"}</button>
+              <button type="submit" disabled={loading} className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50">{loading ? 'Guardando...' : 'Guardar'}</button>
               <button type="button" onClick={resetForm} className="bg-slate-600 text-white px-4 py-2 rounded">Cancelar</button>
             </div>
           </form>
         </motion.div>
-            )}
+      )}
+
+      <div className="bg-slate-800 rounded-lg overflow-hidden">
         {loading && <div className="p-4 text-center">Cargando...</div>}
         {!loading && drivers.length === 0 && <div className="p-4 text-center text-slate-400">No se encontraron conductores.</div>}
         {!loading && drivers.length > 0 && (
@@ -249,7 +225,7 @@ useEffect(() => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Nombre</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Email</th>
-                {isSuperAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">ID de Compañía</th>}
+                {isSuperAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Empresa</th>}
                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>

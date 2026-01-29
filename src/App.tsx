@@ -90,163 +90,163 @@ function App() {
     }
 
     return (
-      <div className="relative min-h-screen overflow-hidden">
-        {/* Immersive Earth Orbit View */}
+      <div className="relative min-h-screen bg-black overflow-hidden">
+        {/* Deep Space Background */}
         <div className="absolute inset-0 bg-black">
-          {/* Deep Space Background */}
-          <div className="absolute inset-0">
-            <div className="absolute inset-0 bg-gradient-to-b from-black via-slate-900 to-blue-950" />
-            
-            {/* Stars */}
-            <div className="absolute inset-0 opacity-60">
-              <div className="stars-layer-1" />
-              <div className="stars-layer-2" />
-            </div>
-            
-            {/* Earth with Atmosphere */}
-            <div 
-              className="absolute inset-0 earth-orbit-view"
-              style={{
-                backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=3000&h=2000&fit=crop')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center bottom',
-                animation: 'pan-slow 120s ease-in-out infinite'
-              }}
-            />
-            
-            {/* Atmosphere Glow */}
-            <div className="absolute inset-0">
-              <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 via-blue-400/5 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-blue-600/20" />
-            </div>
-            
-            {/* Lens Flare Effects */}
-            <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-blue-400 rounded-full filter blur-3xl opacity-20 animate-pulse" />
-            <div className="absolute bottom-1/3 left-1/3 w-24 h-24 bg-cyan-300 rounded-full filter blur-2xl opacity-15 animate-pulse" />
+          {/* Subtle Distant Stars */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="stars-field" />
           </div>
         </div>
 
-        {/* Login Box with Extreme Glassmorphism */}
-        <div className="relative z-10 min-h-screen flex items-center justify-center px-4">
-          <div className="w-full max-w-md">
-            {/* Floating Satellite */}
-            <div className="text-center mb-8">
-              <div className="flex justify-center mb-6">
-                <div className="relative">
-                  <Satellite className="w-20 h-20 text-blue-400 relative z-10 animate-bounce" style={{ animationDuration: '3s' }} />
-                  <div className="absolute inset-0 bg-blue-400 rounded-full filter blur-2xl opacity-30 animate-pulse" />
-                </div>
-              </div>
-              <h1 className="text-5xl font-bold text-white mb-3 tracking-tight">MineConnect</h1>
-              <div className="text-2xl font-light text-blue-200 mb-2">SAT PRO</div>
-              <div className="flex items-center justify-center space-x-2 text-blue-300/60 text-sm">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span>Monitoreo Satelital Activo</span>
-              </div>
-            </div>
-
-            {/* Extreme Glassmorphism Container */}
+        {/* Earth - The Blue Marble */}
+        <div className="absolute inset-0 flex items-center justify-end">
+          <div className="relative w-[70vw] h-[100vh]">
+            {/* Earth Container */}
             <div 
-              className="backdrop-blur-2xl bg-white/5 rounded-3xl p-8 border border-white/10 shadow-2xl"
+              className="absolute inset-0"
               style={{
-                boxShadow: '0 40px 80px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 0 20px rgba(255, 255, 255, 0.03)'
+                backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=2000&h=2000&fit=crop&q=100')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'right center',
+                filter: 'brightness(1.1) contrast(1.2) saturate(1.1)'
               }}
             >
-              <form onSubmit={login} className="space-y-6">
+              {/* Terminator Line - Dramatic Day/Night Transition */}
+              <div className="absolute inset-0">
+                <div 
+                  className="absolute inset-0"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent 0%, transparent 40%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,1) 80%)'
+                  }}
+                />
+              </div>
+              
+              {/* Atmospheric Glow - Only on Lit Side */}
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'radial-gradient(ellipse at 35% 50%, transparent 40%, rgba(0,150,255,0.1) 45%, rgba(0,200,255,0.3) 48%, transparent 52%)',
+                  filter: 'blur(2px)'
+                }}
+              />
+              
+              {/* Inner Atmosphere - Intense Cyan on Sunlit Edge */}
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'radial-gradient(ellipse at 35% 50%, transparent 45%, rgba(0,255,255,0.2) 47%, transparent 49%)',
+                  filter: 'blur(1px)'
+                }}
+              />
+            </div>
+
+            {/* Earth Shadow - Dark Side Merge with Space */}
+            <div 
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.3) 50%, black 75%)',
+                mixBlendMode: 'multiply'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Login Box - Left Side Floating in Space */}
+        <div className="relative z-20 min-h-screen flex items-center justify-start px-8 md:px-16">
+          <div className="w-full max-w-sm">
+            {/* Brand */}
+            <div className="mb-12">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-3 bg-cyan-500/20 rounded-xl border border-cyan-400/30">
+                  <Satellite className="w-8 h-8 text-cyan-400" />
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-blue-100 mb-2">Email</label>
+                  <h1 className="text-4xl font-bold text-white tracking-tight">MineConnect</h1>
+                  <p className="text-xl text-cyan-300 font-light">SAT PRO</p>
+                </div>
+              </div>
+              <p className="text-cyan-200/40 text-sm">Satellite Monitoring System</p>
+            </div>
+
+            {/* Ultra-Minimalist Glassmorphism Login */}
+            <div 
+              className="backdrop-blur-xl bg-white/3 rounded-2xl p-6 border border-white/5"
+              style={{
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.02)'
+              }}
+            >
+              <form onSubmit={login} className="space-y-5">
+                <div>
                   <input 
                     type="email" 
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     required
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                    placeholder="usuario@mineconnect.com"
+                    placeholder="Email"
+                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-white placeholder-cyan-200/30 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50 transition-all text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-blue-100 mb-2">Contraseña</label>
                   <input 
                     type="password" 
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
                     required
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                    placeholder="••••••••"
+                    placeholder="Password"
+                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-white placeholder-cyan-200/30 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50 transition-all text-sm"
                   />
                 </div>
                 {err && (
-                  <div className="p-3 bg-red-500/20 border border-red-400/30 rounded-lg">
-                    <div className="text-red-200 text-sm">{err}</div>
+                  <div className="p-3 bg-red-500/10 border border-red-400/20 rounded-lg">
+                    <div className="text-red-300 text-sm">{err}</div>
                   </div>
                 )}
                 <button 
                   type="submit" 
                   disabled={loadingAuth}
-                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
+                  className="w-full py-3 bg-cyan-500/20 border border-cyan-400/30 text-cyan-100 font-medium rounded-lg hover:bg-cyan-500/30 hover:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
                 >
                   {loadingAuth ? (
                     <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Conectando...
+                      Connecting...
                     </span>
-                  ) : 'Iniciar Sesión'}
+                  ) : 'Connect to Satellite'}
                 </button>
               </form>
             </div>
 
-            {/* Footer */}
-            <div className="text-center mt-8 text-blue-200/60 text-sm">
-              <p>Plataforma de Monitoreo Satelital © 2026</p>
+            {/* Status */}
+            <div className="flex items-center justify-center space-x-2 mt-6 text-cyan-200/40 text-xs">
+              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+              <span>System Online</span>
             </div>
           </div>
         </div>
 
         <style>{`
-          @keyframes pan-slow {
-            0%, 100% { 
-              transform: scale(1.3) translateX(-5%) translateY(0); 
-            }
-            25% { 
-              transform: scale(1.3) translateX(0) translateY(-2%); 
-            }
-            50% { 
-              transform: scale(1.3) translateX(5%) translateY(0); 
-            }
-            75% { 
-              transform: scale(1.3) translateX(0) translateY(2%); 
-            }
-          }
-          
-          .stars-layer-1 {
+          .stars-field {
             position: absolute;
             inset: 0;
-            background-image: radial-gradient(2px 2px at 20px 30px, white, transparent),
-                              radial-gradient(2px 2px at 40px 70px, white, transparent),
-                              radial-gradient(1px 1px at 50px 50px, white, transparent),
-                              radial-gradient(1px 1px at 80px 10px, white, transparent),
-                              radial-gradient(2px 2px at 130px 80px, white, transparent);
-            background-size: 200px 200px;
-            animation: drift 100s linear infinite;
-          }
-          
-          .stars-layer-2 {
-            position: absolute;
-            inset: 0;
-            background-image: radial-gradient(1px 1px at 10px 10px, white, transparent),
-                              radial-gradient(1px 1px at 150px 150px, white, transparent),
-                              radial-gradient(2px 2px at 60px 170px, white, transparent),
-                              radial-gradient(1px 1px at 175px 20px, white, transparent);
-            background-size: 250px 250px;
-            animation: drift 150s linear infinite reverse;
+            background-image: 
+              radial-gradient(1px 1px at 100px 200px, rgba(255,255,255,0.8), transparent),
+              radial-gradient(1px 1px at 300px 100px, rgba(255,255,255,0.6), transparent),
+              radial-gradient(0.5px 0.5px at 500px 300px, rgba(255,255,255,0.4), transparent),
+              radial-gradient(1px 1px at 700px 150px, rgba(255,255,255,0.7), transparent),
+              radial-gradient(0.5px 0.5px at 900px 400px, rgba(255,255,255,0.5), transparent),
+              radial-gradient(1px 1px at 1200px 250px, rgba(255,255,255,0.6), transparent),
+              radial-gradient(0.5px 0.5px at 1500px 350px, rgba(255,255,255,0.4), transparent);
+            background-size: 1600px 600px;
+            animation: drift 200s linear infinite;
           }
           
           @keyframes drift {
             from { transform: translateX(0); }
-            to { transform: translateX(-200px); }
+            to { transform: translateX(-1600px); }
           }
         `}</style>
       </div>

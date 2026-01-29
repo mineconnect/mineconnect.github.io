@@ -99,94 +99,132 @@ function App() {
           </div>
         </div>
 
-        {/* Earth - Partial View with Day/Night Terminator */}
+        {/* Earth - Low Earth Orbit Orbital View */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute w-[150vw] h-[150vh] -top-1/4 -left-1/4">
-            {/* Earth Surface - Entering from Side */}
+          <div className="absolute w-[200vw] h-[200vh] -top-1/3 -left-1/3">
+            {/* Earth Surface - Close Orbital Perspective */}
             <div 
-              className="absolute inset-0 earth-partial-view"
+              className="absolute inset-0 earth-orbital-view"
               style={{
                 backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=4000&h=4000&fit=crop&q=100')`,
-                backgroundSize: '100% 100%',
-                backgroundPosition: '30% 45%',
-                boxShadow: 'inset -80px -80px 120px rgba(0,0,0,0.9), inset 50px 50px 100px rgba(100,200,255,0.2), 0 0 150px rgba(100,150,255,0.15)'
+                backgroundSize: '90% 90%',
+                backgroundPosition: '25% 50%',
+                boxShadow: 'inset -120px -120px 200px rgba(0,0,0,0.95), inset 80px 80px 150px rgba(100,200,255,0.25), 0 0 200px rgba(50,100,255,0.2)'
               }}
             >
-              {/* High-Resolution Cloud Layer */}
+              {/* Ultra-Detailed Cloud Layer with Shadows */}
               <div 
-                className="absolute inset-0 opacity-65"
+                className="absolute inset-0 opacity-70"
                 style={{
                   backgroundImage: `url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=4000&h=4000&fit=crop&q=100')`,
-                  backgroundSize: '100% 100%',
-                  backgroundPosition: '30% 40%',
+                  backgroundSize: '90% 90%',
+                  backgroundPosition: '25% 45%',
                   mixBlendMode: 'screen',
-                  filter: 'blur(0.4px) brightness(1.2) contrast(1.15)'
+                  filter: 'blur(0.2px) brightness(1.3) contrast(1.2)'
                 }}
               />
 
-              {/* Night Side City Lights */}
+              {/* Night Side - City Networks (Dense Urban Areas) */}
               <div 
-                className="absolute inset-0 opacity-80"
+                className="absolute inset-0 opacity-85"
                 style={{
-                  background: 'radial-gradient(ellipse at 20% 40%, rgba(255,200,0,0.4) 0%, rgba(255,150,0,0.3) 10%, transparent 25%), radial-gradient(ellipse at 35% 60%, rgba(255,180,0,0.3) 0%, rgba(255,120,0,0.2) 15%, transparent 30%), radial-gradient(ellipse at 15% 70%, rgba(255,220,0,0.35) 0%, rgba(255,140,0,0.25) 12%, transparent 28%)',
+                  background: 'radial-gradient(ellipse at 20% 30%, rgba(255,200,50,0.8) 0%, rgba(255,150,0,0.6) 8%, transparent 20%), radial-gradient(ellipse at 35% 50%, rgba(255,180,60,0.7) 0%, rgba(255,120,0,0.5) 10%, transparent 25%), radial-gradient(ellipse at 25% 70%, rgba(255,220,40,0.75) 0%, rgba(255,140,0,0.55) 7%, transparent 22%)',
                   mixBlendMode: 'screen',
-                  filter: 'blur(1px)'
+                  filter: 'blur(0.8px) brightness(1.4)'
                 }}
               />
 
-              {/* Enhanced City Lights Detail */}
+              {/* Individual City Lights - Ultra Sharp */}
               <div 
-                className="absolute inset-0 opacity-90"
+                className="absolute inset-0 opacity-95"
                 style={{
-                  background: 'radial-gradient(circle at 18% 45%, rgba(255,200,50,0.6) 0%, transparent 2%), radial-gradient(circle at 25% 55%, rgba(255,180,80,0.5) 0%, transparent 1.5%), radial-gradient(circle at 32% 65%, rgba(255,160,100,0.7) 0%, transparent 2.5%), radial-gradient(circle at 22% 50%, rgba(255,220,0,0.8) 0%, transparent 1%), radial-gradient(circle at 28% 62%, rgba(255,190,0,0.6) 0%, transparent 1.8%)',
+                  background: 'radial-gradient(circle at 18% 32%, rgba(255,210,80,0.9) 0%, transparent 1%), radial-gradient(circle at 22% 48%, rgba(255,190,90,0.85) 0%, transparent 0.8%), radial-gradient(circle at 28% 58%, rgba(255,170,100,0.8) 0%, transparent 1.2%), radial-gradient(circle at 33% 68%, rgba(255,200,70,0.88) 0%, transparent 0.9%), radial-gradient(circle at 20% 45%, rgba(255,220,50,0.92) 0%, transparent 0.7%), radial-gradient(circle at 26% 52%, rgba(255,180,85,0.86) 0%, transparent 1.1%)',
                   mixBlendMode: 'screen',
-                  filter: 'blur(0.3px) brightness(1.3)'
+                  filter: 'blur(0.1px) brightness(1.5) saturate(1.3)'
+                }}
+              />
+
+              {/* City Light Networks - Connected Grids */}
+              <div 
+                className="absolute inset-0 opacity-75"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,200,0,0.3) 18%, transparent 32%, rgba(255,180,0,0.25) 45%, transparent 58%, rgba(255,160,0,0.35) 72%, transparent 88%, rgba(255,190,0,0.28) 100%), linear-gradient(135deg, transparent 0%, rgba(255,210,0,0.2) 25%, transparent 40%, rgba(255,170,0,0.3) 60%, transparent 80%, rgba(255,200,0,0.25) 100%)',
+                  mixBlendMode: 'screen',
+                  filter: 'blur(0.3px)'
                 }}
               />
               
-              {/* Intense Atmospheric Glow on Day Side */}
+              {/* Intense Atmospheric Halo - Horizon Glow */}
               <div 
                 className="absolute inset-0"
                 style={{
-                  background: 'radial-gradient(ellipse at 65% 30%, rgba(100,150,255,0.5) 0%, rgba(50,120,220,0.3) 25%, transparent 50%)',
-                  filter: 'blur(2px)'
+                  background: 'radial-gradient(ellipse at 70% 20%, rgba(100,150,255,0.7) 0%, rgba(50,120,220,0.5) 20%, transparent 45%)',
+                  filter: 'blur(1.5px) brightness(1.2)'
                 }}
               />
               
-              {/* Fine Atmospheric Rim - Intense Blue */}
+              {/* Vibrant Atmospheric Rim - Intense Blue */}
               <div 
                 className="absolute inset-0"
                 style={{
-                  background: 'linear-gradient(135deg, transparent 0%, transparent 30%, rgba(100,200,255,0.8) 60%, rgba(50,150,255,1) 75%, transparent 90%)',
-                  filter: 'blur(0.8px)',
+                  background: 'linear-gradient(135deg, transparent 0%, transparent 25%, rgba(80,180,255,0.9) 55%, rgba(50,150,255,1) 70%, rgba(30,120,255,0.8) 80%, transparent 95%)',
+                  filter: 'blur(0.5px)',
+                  mixBlendMode: 'screen'
+                }}
+              />
+
+              {/* Secondary Atmospheric Glow - Layered Effect */}
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(125deg, transparent 0%, transparent 20%, rgba(100,200,255,0.6) 45%, rgba(70,170,255,0.8) 65%, transparent 85%)',
+                  filter: 'blur(1px)',
                   mixBlendMode: 'screen'
                 }}
               />
               
-              {/* Oblique Day/Night Terminator */}
+              {/* Sharp Day/Night Terminator - Dramatic Transition */}
               <div 
                 className="absolute inset-0"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 20%, rgba(0,0,0,0.4) 35%, rgba(255,100,0,0.1) 45%, transparent 55%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.3) 90%, rgba(0,0,0,0.8) 100%)',
+                  background: 'linear-gradient(125deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 15%, rgba(0,0,0,0.6) 30%, rgba(255,120,0,0.15) 40%, rgba(255,180,0,0.1) 50%, transparent 60%, rgba(100,150,255,0.05) 75%, rgba(50,100,255,0.02) 90%, rgba(0,0,0,0.7) 100%)',
                   mixBlendMode: 'multiply'
                 }}
               />
 
-              {/* Deep Ocean Enhancement */}
+              {/* Deep Ocean - Night Side */}
+              <div 
+                className="absolute inset-0 opacity-60"
+                style={{
+                  background: 'radial-gradient(ellipse at 30% 50%, rgba(0,20,60,0.8) 0%, rgba(0,30,80,0.6) 30%, transparent 60%)',
+                  mixBlendMode: 'multiply'
+                }}
+              />
+
+              {/* Ocean Reflection - Day Side */}
               <div 
                 className="absolute inset-0 opacity-40"
                 style={{
-                  background: 'linear-gradient(90deg, rgba(0,30,80,0.6) 50%, rgba(0,50,150,0.3) 70%, transparent 100%)',
+                  background: 'linear-gradient(90deg, rgba(0,40,100,0.7) 60%, rgba(0,60,150,0.4) 75%, rgba(0,80,200,0.2) 90%, transparent 100%)',
+                  mixBlendMode: 'screen'
+                }}
+              />
+
+              {/* Continent Enhancement - Detail Layer */}
+              <div 
+                className="absolute inset-0 opacity-35"
+                style={{
+                  background: 'radial-gradient(ellipse at 65% 40%, rgba(34,139,34,0.25) 0%, transparent 35%, rgba(139,69,19,0.2) 50%, transparent 80%)',
                   mixBlendMode: 'multiply'
                 }}
               />
 
-              {/* Continent Detail Enhancement */}
+              {/* Final Enhancement - 8K Sharpness */}
               <div 
-                className="absolute inset-0 opacity-30"
+                className="absolute inset-0 opacity-25"
                 style={{
-                  background: 'radial-gradient(ellipse at 60% 50%, rgba(34,139,34,0.2) 0%, transparent 40%, rgba(139,69,19,0.15) 60%, transparent 100%)',
-                  mixBlendMode: 'multiply'
+                  filter: 'contrast(1.1) saturate(1.15) brightness(1.05)',
+                  mixBlendMode: 'overlay'
                 }}
               />
             </div>
@@ -281,8 +319,8 @@ function App() {
             animation: drift 300s linear infinite;
           }
           
-          .earth-partial-view {
-            animation: orbital-drift 200s ease-in-out infinite;
+          .earth-orbital-view {
+            animation: low-orbit-drift 180s ease-in-out infinite;
           }
           
           @keyframes drift {
@@ -290,18 +328,21 @@ function App() {
             to { transform: translateX(-1200px); }
           }
           
-          @keyframes orbital-drift {
+          @keyframes low-orbit-drift {
             0%, 100% { 
               transform: translateX(0) translateY(0) scale(1); 
             }
-            25% { 
-              transform: translateX(-1%) translateY(-0.5%) scale(1.01); 
+            20% { 
+              transform: translateX(-0.8%) translateY(-0.3%) scale(1.01); 
             }
-            50% { 
-              transform: translateX(1%) translateY(-0.3%) scale(1.01); 
+            40% { 
+              transform: translateX(0.6%) translateY(-0.2%) scale(1.01); 
             }
-            75% { 
-              transform: translateX(0.5%) translateY(0.5%) scale(1.01); 
+            60% { 
+              transform: translateX(0.3%) translateY(0.4%) scale(1.01); 
+            }
+            80% { 
+              transform: translateX(-0.5%) translateY(0.2%) scale(1.01); 
             }
           }
         `}</style>

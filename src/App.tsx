@@ -9,16 +9,13 @@ export type UserProfile = {
   company_id: string | null
 }
 
-// No usamos endpoints internos; este ENDPOINT abreviado se mantiene fuera de la lógica
-// ENDPOINT_PROFILE eliminado intencionalmente
-
 function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
+  const [showAuth, setShowAuth] = useState(false)
 
-  // Fetch profile con timeout de 30s y retry sin logout
   async function fetchProfile() {
     setLoading(true)
     setError(null)
@@ -33,37 +30,40 @@ function App() {
     }, timeoutMs)
 
     try {
-      // Obtener sesión y usuario
-      const { data: sessionData } = await (supabase as any).auth.getSession()
+      const { data: sessionData } = await supabase.auth.getSession()
       const session = sessionData?.session ?? null
 
       if (!session || !session.user) {
-        // Sin sesión: no hacer logout automático
         setProfile(null)
+        setShowAuth(true)
         setLoading(false)
         finished = true
         clearTimeout(timeout)
         return
       }
 
-      const user = session.user
-      // Cargar perfil desde la tabla profiles
+      const userId = session.user.id
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single()
 
       if (profileError) {
         setError('Error de conexión')
+        setProfile(null)
+        setShowAuth(true)
       } else if (profileData) {
         setProfile(profileData as UserProfile)
+        setShowAuth(false)
       } else {
         setProfile(null)
+        setShowAuth(true)
       }
     } catch {
       if (!finished) {
         setError('Error de conexión')
+        setShowAuth(true)
       }
     } finally {
       finished = true
@@ -80,6 +80,7 @@ function App() {
   const retry = () => setRetryKey((k) => k + 1)
 
   if (loading) return <div>Loading profile…</div>
+
   if (error) {
     return (
       <div>
@@ -89,15 +90,56 @@ function App() {
     )
   }
 
-  if (!profile) {
-    return <div>Login requerido</div>
+  if (showAuth || !profile) {
+    // Integración de Auth
+    return (
+      <Auth onLoginSuccess={fetchProfile}/>
+    )
   }
 
-  // Render básico
   return (
     <div>
       Bienvenido {profile.full_name} — {profile.role}
-      {/* Aquí podrías montar HistoryPanel y DriverSimulator, pasando profile si corresponde */}
+      {/* Aquí se podrían montar HistoryPanel y DriverSimulator pasando profile si procede */}
+    </div>
+  )
+}
+
+// Componente Auth simple (puedes adaptar a tu Auth existente)
+function Auth({ onLoginSuccess }: { onLoginSuccess: () => void }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const login = async (e: any) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setError(error.message)
+      else onLoginSuccess()
+    } catch {
+      setError('Error de conexión')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Iniciar sesión</h2>
+      <form onSubmit={login}>
+        <div>
+          <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
+        </div>
+        <div>
+          <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+        </div>
+        {error && <div style={{ color: 'red' }}>{error}</div>}
+        <button type="submit" disabled={loading}>Login</button>
+      </form>
     </div>
   )
 }

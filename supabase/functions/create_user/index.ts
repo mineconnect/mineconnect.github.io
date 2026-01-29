@@ -22,7 +22,6 @@ async function getCallerFromToken(token: string | null) {
 }
 
 async function handler(req: Request) {
-  // Preflight handling must be first
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders })
   }

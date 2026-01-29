@@ -109,7 +109,7 @@ jobs:
         PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_REF }}
       if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.PROJECT_ID != '' }}
       run: |
-        supabase functions deploy create_user --project-ref ${{ env.PROJECT_ID }} --no-verify
+        supabase functions deploy create_user --project-ref ${{ env.PROJECT_ID }}
 
     - name: Setup Pages
       uses: actions/configure-pages@v3

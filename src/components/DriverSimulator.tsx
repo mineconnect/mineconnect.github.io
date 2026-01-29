@@ -4,11 +4,13 @@ import { Play, Pause, Navigation, Activity, Smartphone } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import type { Trip, UserProfile } from '../types';
 
+// Props
 interface DriverSimulatorProps {
   user: UserProfile | null;
   onTripUpdate: () => void;
 }
 
+// GPS point type for IndexedDB persistence
 type GPSPoint = {
   id?: number;
   trip_id: string;
@@ -85,6 +87,7 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
   const [tripDuration, setTripDuration] = useState(0);
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const lastLatLon = useRef<{ lat: number; lon: number } | null>(null);
 
   // Initialize batch sync timer
   useEffect(() => {
@@ -113,40 +116,52 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
     setGpsLogs((prev) => [...prev.slice(-15), { timestamp, message }]);
   };
 
-  const startGPSWatch = (tripId: string) => {
-    return navigator.geolocation.watchPosition(
-      async (pos) => {
-        const { latitude, longitude, speed } = pos.coords;
-        const speedKmh = speed ? Math.round(speed * 3.6) : 0;
-        setCurrentSpeed(speedKmh);
-        addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
-        // Persist GPS point to queue (IndexedDB)
-        if (!tripId) {
-          addGPSLog('⚠ GPS: missing tripId, skipping insert to queue');
-          return;
-        }
-        const point: GPSPoint = {
-          trip_id: tripId,
-          latitude,
-          longitude,
-          speed: speedKmh,
-          company_id: user?.company_id ?? null,
-          created_at: Date.now(),
-        } as GPSPoint;
-        // save to queue
-        try {
-          await addPointToQueue(point);
-        } catch (e) {
-          addGPSLog('⚠ GPS: failed to queue point');
-        }
-      },
-      (err) => {
-        const msg = err.code === 3 ? "Tiempo de espera agotado" : "Error de señal";
-        setError(msg);
-        addGPSLog(`❌ ${msg}`);
-      },
-      { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
-    );
+  // 5-second polling logic (no watchPosition)
+  const pollGPS = async (tripId: string) => {
+    return new Promise<void>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          let { latitude, longitude, speed } = pos.coords;
+          // 5s jitter if movement is zero or speed ~0
+          const speedKmh = speed ? Math.round(speed * 3.6) : 0;
+          if (speedKmh === 0) {
+            // apply jitter
+            const jitterLat = (Math.random() * 2 - 1) * 0.0001;
+            const jitterLon = (Math.random() * 2 - 1) * 0.0001;
+            latitude += jitterLat;
+            longitude += jitterLon;
+          } else {
+            // If value changed, keep lastLatLon for a smooth jitter in subsequent samples (optional)
+          }
+
+          // Persist to queue
+          const point: GPSPoint = {
+            trip_id: tripId,
+            latitude,
+            longitude,
+            speed: speedKmh,
+            company_id: user?.company_id ?? null,
+            created_at: Date.now(),
+          };
+          try {
+            await addPointToQueue(point);
+            addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
+          } catch {
+            addGPSLog('⚠ GPS: failed to queue point');
+          }
+          // remember last
+          lastLatLon.current = { lat: latitude, lon: longitude };
+          resolve();
+        },
+        (err) => {
+          const msg = err.code === 3 ? 'Tiempo de espera agotado' : 'Error de señal';
+          setError(msg);
+          addGPSLog(`❌ ${msg}`);
+          resolve();
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+      );
+    });
   };
 
   // Batch sync to server (30s)
@@ -154,6 +169,8 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
     try {
       const queued = await getAllQueuedPoints();
       if (!queued || queued.length === 0) return;
+      // Log the batch size
+      addGPSLog(`🔄 Sincronizando bloque de ${queued.length} puntos...`);
       const payloads = queued.map(p => ({
         trip_id: p.trip_id,
         latitude: p.latitude,
@@ -167,6 +184,7 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
         // remove all queued points that were sent
         const ids = queued.map(q => q.id!).filter((id) => typeof id === 'number');
         await removeQueuedPoints(ids);
+        addGPSLog('✅ Datos enviados a Supabase');
       } else {
         // keep for next retry
         console.warn('Batch GPS sync failed', error);
@@ -180,29 +198,42 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
     console.log('Starting GPS tracking for user:', user?.id ?? 'unknown');
     if (!user) return setError('Usuario no autenticado');
     try {
-      const tripCompanyId = user.company_id;
-      const { data, error: tripError } = await supabase.from('trips').insert({
-        plate: user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001',
-        vehicle_id: crypto.randomUUID(),
-        driver_id: user.id,
-        driver_name: user.full_name,
-        company_id: tripCompanyId,
-        status: 'en_curso',
-        start_time: new Date().toISOString()
-      }).select().single();
+      // Crear viaje si no existe
+      if (!currentTrip) {
+        const tripCompanyId = user.company_id;
+        const { data, error: tripError } = await supabase.from('trips').insert({
+          plate: user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001',
+          vehicle_id: crypto.randomUUID(),
+          driver_id: user.id,
+          driver_name: user.full_name,
+          company_id: tripCompanyId,
+          status: 'en_curso',
+          start_time: new Date().toISOString()
+        }).select().single();
+        if (tripError) throw tripError;
+        setCurrentTrip(data);
+      }
 
-      if (tripError) throw tripError;
-      setCurrentTrip(data);
       setIsTracking(true);
       setGpsLogs([]);
       addGPSLog("🚀 Operación iniciada - SAT Pro Activo");
-      const id = startGPSWatch(data.id);
+
+      // Use 5-second polling while tracking
+      const tripId = currentTrip?.id ?? '';
+      // Start polling interval
+      const id = window.setInterval(() => pollGPSTripSafe(tripId), 5000);
       setWatchId(id);
     } catch (e) { setError('Error al iniciar'); }
   };
 
+  // Safe poll wrapper to handle race with trip creation
+  const pollGPSTripSafe = async (tripId: string) => {
+    if (!tripId) return;
+    await pollGPS(tripId);
+  };
+
   const stopTracking = async () => {
-    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    if (watchId !== null) window.clearInterval(watchId);
     if (currentTrip) {
       await supabase.from('trips').update({ end_time: new Date().toISOString(), status: 'finalizado' }).eq('id', currentTrip.id);
       onTripUpdate();

@@ -8,8 +8,9 @@ import UserManagement from './components/UserManagement';
 import Login from './components/Login';
 import type { Session, User } from '@supabase/supabase-js';
 
-// Import UserProfile type from types
-import type { UserProfile } from './types';
+// Re-export UserProfile type for consumers (e.g., UserManagement) to import from App
+import type { UserProfile as UserProfileFromTypes } from './types';
+export type UserProfile = UserProfileFromTypes;
 
 // Main App Component
 function App() {

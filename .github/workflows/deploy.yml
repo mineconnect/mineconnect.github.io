@@ -94,7 +94,10 @@ jobs:
         echo "mineconnect.com.ar" > final-deploy/CNAME
 
     - name: Deploy Edge Function to Supabase
-      if: ${{ secrets.SUPABASE_TOKEN != '' && secrets.SUPABASE_PROJECT_REF != '' }}
+      env:
+        SUPABASE_TOKEN: ${{ secrets.SUPABASE_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      if: env.SUPABASE_TOKEN != '' && env.SUPABASE_PROJECT_REF != ''
       run: |
         npm i -g supabase
         supabase login -t ${{ secrets.SUPABASE_TOKEN }}

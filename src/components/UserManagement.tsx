@@ -19,8 +19,8 @@ export default function UserManagement({ userProfile }: UserManagementProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const isSuperAdmin = userProfile?.role === 'SUPERADMIN';
-  const isCoordinator = userProfile?.role === 'COORDINADOR';
+const isSuperAdmin = userProfile?.role === 'admin';
+const isCoordinator = userProfile?.role === 'coordinator';
 
   useEffect(() => {
     if (isSuperAdmin || isCoordinator) {

@@ -22,6 +22,7 @@ async function getCallerFromToken(token: string | null) {
 }
 
 async function handler(req: Request) {
+  // Preflight handling must be first
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders })
   }
@@ -33,23 +34,19 @@ async function handler(req: Request) {
   const token = authHeader?.replace('Bearer ', '') ?? null
   const caller = await getCallerFromToken(token)
   let callerRole: string | null = null
+  let callerCompany: string | null = null
   if (caller?.id) {
-    const { data, error } = await supabase.from('profiles').select('role').eq('id', caller.id).single()
-    if (!error && data?.role) callerRole = data.role
+    const { data, error } = await supabase.from('profiles').select('role, company_id').eq('id', caller.id).single()
+    if (!error && data) { callerRole = data.role; callerCompany = data.company_id }
   }
 
   const body = await req.json()
-  console.log('Edge create_user: request body', body)
   const { email, password, full_name, role, company_id } = body
-  // Normalize role and determine company_id for insert
   const roleValue = (role === 'admin' || role === 'coordinator' || role === 'conductor') ? role : 'conductor'
-  const companyToUse = company_id ?? (caller?.company_id ?? null)
-  console.log("Edge create_user payload:", { email, full_name, role: roleValue, company_id: companyToUse })
+  const companyToUse = company_id ?? callerCompany ?? null
+  console.log('Edge create_user payload:', { email, full_name, role: roleValue, company_id: companyToUse })
 
-  // Multi-tenant eager check: allow admin to create coordinator/conductor; coordinator to create conductor
-  const allowed =
-    (callerRole === 'admin' && (roleValue === 'coordinator' || roleValue === 'conductor')) ||
-    (callerRole === 'coordinator' && roleValue === 'conductor')
+  const allowed = (callerRole === 'admin' && (roleValue === 'coordinator' || roleValue === 'conductor')) || (callerRole === 'coordinator' && roleValue === 'conductor')
   if (!callerRole || !allowed) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
@@ -63,19 +60,11 @@ async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'User creation failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
-  // Use the provided company_id if given, otherwise the caller's company_id
-  const companyToUse = company_id ?? caller?.company_id ?? null
-  const { error: insertError } = await supabase.from('profiles').insert({
-    id: userId,
-    full_name,
-    email,
-    role: roleValue,
-    company_id: companyToUse
-  })
-  if (insertError) {
-    // Cleanup: delete the created user to avoid ghost accounts
+  try {
+    await supabase.from('profiles').insert({ id: userId, full_name, email, role: roleValue, company_id: companyToUse })
+  } catch (insertError) {
     await supabase.auth.admin.deleteUser(userId)
-    return new Response(JSON.stringify({ error: insertError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type':'application/json' } })
+    return new Response(JSON.stringify({ error: (insertError as any).message ?? 'Profile insert failed' }), { status: 400, headers: { ...corsHeaders, 'Content-Type':'application/json' } })
   }
 
   return new Response(JSON.stringify({ user: { id: userId, email, full_name, role: roleValue } }), {

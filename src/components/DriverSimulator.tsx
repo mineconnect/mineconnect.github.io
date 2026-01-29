@@ -87,7 +87,8 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
   const [tripDuration, setTripDuration] = useState(0);
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
-  const lastLatLon = useRef<{ lat: number; lon: number } | null>(null);
+  const lastLat = useRef<number | null>(null);
+  const lastLon = useRef<number | null>(null);
 
   // Initialize batch sync timer
   useEffect(() => {
@@ -122,35 +123,34 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           let { latitude, longitude, speed } = pos.coords;
-          // 5s jitter if movement is zero or speed ~0
+          // 5s jitter if movement is zero
+          let lat = latitude;
+          let lon = longitude;
           const speedKmh = speed ? Math.round(speed * 3.6) : 0;
           if (speedKmh === 0) {
-            // apply jitter
             const jitterLat = (Math.random() * 2 - 1) * 0.0001;
             const jitterLon = (Math.random() * 2 - 1) * 0.0001;
-            latitude += jitterLat;
-            longitude += jitterLon;
-          } else {
-            // If value changed, keep lastLatLon for a smooth jitter in subsequent samples (optional)
+            lat += jitterLat;
+            lon += jitterLon;
           }
 
           // Persist to queue
           const point: GPSPoint = {
             trip_id: tripId,
-            latitude,
-            longitude,
+            latitude: lat,
+            longitude: lon,
             speed: speedKmh,
             company_id: user?.company_id ?? null,
             created_at: Date.now(),
           };
           try {
             await addPointToQueue(point);
-            addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
+            addGPSLog(`📍 GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)} | ${speedKmh} km/h`);
           } catch {
             addGPSLog('⚠ GPS: failed to queue point');
           }
-          // remember last
-          lastLatLon.current = { lat: latitude, lon: longitude };
+          lastLat.current = lat;
+          lastLon.current = lon;
           resolve();
         },
         (err) => {
@@ -159,7 +159,7 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
           addGPSLog(`❌ ${msg}`);
           resolve();
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     });
   };
@@ -169,24 +169,21 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
     try {
       const queued = await getAllQueuedPoints();
       if (!queued || queued.length === 0) return;
-      // Log the batch size
       addGPSLog(`🔄 Sincronizando bloque de ${queued.length} puntos...`);
       const payloads = queued.map(p => ({
         trip_id: p.trip_id,
-        latitude: p.latitude,
-        longitude: p.longitude,
+        latitude: (p as any).latitude,
+        longitude: (p as any).longitude,
         speed: p.speed,
         company_id: p.company_id
       }));
       // Try batch insert to gps_points
       const { error } = await supabase.from('gps_points').insert(payloads);
       if (!error) {
-        // remove all queued points that were sent
         const ids = queued.map(q => q.id!).filter((id) => typeof id === 'number');
         await removeQueuedPoints(ids);
         addGPSLog('✅ Datos enviados a Supabase');
       } else {
-        // keep for next retry
         console.warn('Batch GPS sync failed', error);
       }
     } catch (e) {
@@ -194,42 +191,45 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
     }
   }
 
+  const creatingTripRef = useRef(false);
+
   const startTracking = async () => {
     console.log('Starting GPS tracking for user:', user?.id ?? 'unknown');
     if (!user) return setError('Usuario no autenticado');
     try {
-      // Crear viaje si no existe
-      if (!currentTrip) {
-        const tripCompanyId = user.company_id;
-        const { data, error: tripError } = await supabase.from('trips').insert({
-          plate: user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001',
-          vehicle_id: crypto.randomUUID(),
-          driver_id: user.id,
-          driver_name: user.full_name,
-          company_id: tripCompanyId,
-          status: 'en_curso',
-          start_time: new Date().toISOString()
-        }).select().single();
-        if (tripError) throw tripError;
-        setCurrentTrip(data);
+      // Evita duplicados de viaje
+      if (creatingTripRef.current) {
+        setError('Ya se está creando un viaje. Espere…');
+        return;
       }
+      creatingTripRef.current = true;
+      // Crear viaje y usar el ID directamente para iniciar el polling
+      const { data, error: tripError } = await supabase.from('trips').insert({
+        plate: user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001',
+        vehicle_id: crypto.randomUUID(),
+        driver_id: user.id,
+        driver_name: user.full_name,
+        company_id: user.company_id,
+        status: 'en_curso',
+        start_time: new Date().toISOString()
+      }).select().single();
 
+      if (tripError) throw tripError;
+
+      const tripId = data.id;
+      setCurrentTrip(data);
       setIsTracking(true);
       setGpsLogs([]);
       addGPSLog("🚀 Operación iniciada - SAT Pro Activo");
-
-      // Use 5-second polling while tracking
-      const tripId = currentTrip?.id ?? '';
-      // Start polling interval
-      const id = window.setInterval(() => pollGPSTripSafe(tripId), 5000);
+      // 5 segundos entre lecturas
+      const id = window.setInterval(() => pollGPS(tripId), 5000);
       setWatchId(id);
-    } catch (e) { setError('Error al iniciar'); }
-  };
-
-  // Safe poll wrapper to handle race with trip creation
-  const pollGPSTripSafe = async (tripId: string) => {
-    if (!tripId) return;
-    await pollGPS(tripId);
+    } catch (e) {
+      setError('Error al iniciar');
+      creatingTripRef.current = false;
+    } finally {
+      creatingTripRef.current = false;
+    }
   };
 
   const stopTracking = async () => {
@@ -281,6 +281,7 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={isTracking ? stopTracking : startTracking}
+            disabled={creatingTripRef.current}
             className={`w-40 h-40 rounded-full flex items-center justify-center shadow-2xl transition-all ${
               isTracking ? 'bg-red-600 shadow-red-900/40' : 'bg-emerald-600 shadow-emerald-900/40'
             }`}

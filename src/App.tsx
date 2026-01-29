@@ -99,63 +99,93 @@ function App() {
           </div>
         </div>
 
-        {/* Earth - Centered 4K Globe */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-[80vw] h-[80vw] max-w-[800px] max-h-[800px]">
-            {/* Earth Sphere - Perfectly Centered */}
+        {/* Earth - Partial View with Day/Night Terminator */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute w-[150vw] h-[150vh] -top-1/4 -left-1/4">
+            {/* Earth Surface - Entering from Side */}
             <div 
-              className="absolute inset-0 rounded-full overflow-hidden earth-globe"
+              className="absolute inset-0 earth-partial-view"
               style={{
                 backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=4000&h=4000&fit=crop&q=100')`,
-                backgroundSize: '120% 120%',
-                backgroundPosition: 'center 40%',
-                boxShadow: 'inset -50px -50px 100px rgba(0,0,0,0.8), inset 30px 30px 60px rgba(100,200,255,0.15), 0 0 100px rgba(100,150,255,0.1)'
+                backgroundSize: '100% 100%',
+                backgroundPosition: '30% 45%',
+                boxShadow: 'inset -80px -80px 120px rgba(0,0,0,0.9), inset 50px 50px 100px rgba(100,200,255,0.2), 0 0 150px rgba(100,150,255,0.15)'
               }}
             >
               {/* High-Resolution Cloud Layer */}
               <div 
-                className="absolute inset-0 opacity-60"
+                className="absolute inset-0 opacity-65"
                 style={{
                   backgroundImage: `url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=4000&h=4000&fit=crop&q=100')`,
-                  backgroundSize: '120% 120%',
-                  backgroundPosition: 'center 35%',
+                  backgroundSize: '100% 100%',
+                  backgroundPosition: '30% 40%',
                   mixBlendMode: 'screen',
-                  filter: 'blur(0.6px) brightness(1.15) contrast(1.1)'
+                  filter: 'blur(0.4px) brightness(1.2) contrast(1.15)'
                 }}
               />
 
-              {/* Continent Relief Enhancement */}
+              {/* Night Side City Lights */}
               <div 
-                className="absolute inset-0 opacity-25"
+                className="absolute inset-0 opacity-80"
                 style={{
-                  background: 'radial-gradient(circle at 35% 50%, rgba(34,139,34,0.15) 0%, transparent 30%, rgba(139,69,19,0.1) 50%, transparent 70%, rgba(34,139,34,0.08) 100%)',
-                  mixBlendMode: 'multiply'
-                }}
-              />
-              
-              {/* Atmospheric Glow - Soft Blue Ring */}
-              <div 
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: 'radial-gradient(circle at 50% 50%, transparent 70%, rgba(100,150,255,0.3) 85%, rgba(50,120,220,0.2) 95%, transparent 100%)',
-                  filter: 'blur(3px)'
-                }}
-              />
-              
-              {/* Fine Atmospheric Rim */}
-              <div 
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: 'radial-gradient(circle at 50% 50%, transparent 85%, rgba(100,200,255,0.4) 92%, rgba(50,150,255,0.6) 98%, transparent 100%)',
+                  background: 'radial-gradient(ellipse at 20% 40%, rgba(255,200,0,0.4) 0%, rgba(255,150,0,0.3) 10%, transparent 25%), radial-gradient(ellipse at 35% 60%, rgba(255,180,0,0.3) 0%, rgba(255,120,0,0.2) 15%, transparent 30%), radial-gradient(ellipse at 15% 70%, rgba(255,220,0,0.35) 0%, rgba(255,140,0,0.25) 12%, transparent 28%)',
+                  mixBlendMode: 'screen',
                   filter: 'blur(1px)'
                 }}
               />
-              
-              {/* Soft Day/Night Transition */}
+
+              {/* Enhanced City Lights Detail */}
               <div 
-                className="absolute inset-0 rounded-full"
+                className="absolute inset-0 opacity-90"
                 style={{
-                  background: 'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 20%, transparent 50%, rgba(0,0,0,0.2) 80%, rgba(0,0,0,0.7) 100%)',
+                  background: 'radial-gradient(circle at 18% 45%, rgba(255,200,50,0.6) 0%, transparent 2%), radial-gradient(circle at 25% 55%, rgba(255,180,80,0.5) 0%, transparent 1.5%), radial-gradient(circle at 32% 65%, rgba(255,160,100,0.7) 0%, transparent 2.5%), radial-gradient(circle at 22% 50%, rgba(255,220,0,0.8) 0%, transparent 1%), radial-gradient(circle at 28% 62%, rgba(255,190,0,0.6) 0%, transparent 1.8%)',
+                  mixBlendMode: 'screen',
+                  filter: 'blur(0.3px) brightness(1.3)'
+                }}
+              />
+              
+              {/* Intense Atmospheric Glow on Day Side */}
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'radial-gradient(ellipse at 65% 30%, rgba(100,150,255,0.5) 0%, rgba(50,120,220,0.3) 25%, transparent 50%)',
+                  filter: 'blur(2px)'
+                }}
+              />
+              
+              {/* Fine Atmospheric Rim - Intense Blue */}
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(135deg, transparent 0%, transparent 30%, rgba(100,200,255,0.8) 60%, rgba(50,150,255,1) 75%, transparent 90%)',
+                  filter: 'blur(0.8px)',
+                  mixBlendMode: 'screen'
+                }}
+              />
+              
+              {/* Oblique Day/Night Terminator */}
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 20%, rgba(0,0,0,0.4) 35%, rgba(255,100,0,0.1) 45%, transparent 55%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.3) 90%, rgba(0,0,0,0.8) 100%)',
+                  mixBlendMode: 'multiply'
+                }}
+              />
+
+              {/* Deep Ocean Enhancement */}
+              <div 
+                className="absolute inset-0 opacity-40"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(0,30,80,0.6) 50%, rgba(0,50,150,0.3) 70%, transparent 100%)',
+                  mixBlendMode: 'multiply'
+                }}
+              />
+
+              {/* Continent Detail Enhancement */}
+              <div 
+                className="absolute inset-0 opacity-30"
+                style={{
+                  background: 'radial-gradient(ellipse at 60% 50%, rgba(34,139,34,0.2) 0%, transparent 40%, rgba(139,69,19,0.15) 60%, transparent 100%)',
                   mixBlendMode: 'multiply'
                 }}
               />
@@ -251,8 +281,8 @@ function App() {
             animation: drift 300s linear infinite;
           }
           
-          .earth-globe {
-            animation: gentle-rotate 240s ease-in-out infinite;
+          .earth-partial-view {
+            animation: orbital-drift 200s ease-in-out infinite;
           }
           
           @keyframes drift {
@@ -260,18 +290,18 @@ function App() {
             to { transform: translateX(-1200px); }
           }
           
-          @keyframes gentle-rotate {
+          @keyframes orbital-drift {
             0%, 100% { 
-              transform: rotate(0deg) scale(1); 
+              transform: translateX(0) translateY(0) scale(1); 
             }
             25% { 
-              transform: rotate(-1deg) scale(1.01); 
+              transform: translateX(-1%) translateY(-0.5%) scale(1.01); 
             }
             50% { 
-              transform: rotate(0deg) scale(1); 
+              transform: translateX(1%) translateY(-0.3%) scale(1.01); 
             }
             75% { 
-              transform: rotate(1deg) scale(1.01); 
+              transform: translateX(0.5%) translateY(0.5%) scale(1.01); 
             }
           }
         `}</style>

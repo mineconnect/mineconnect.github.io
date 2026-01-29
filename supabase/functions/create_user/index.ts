@@ -1,35 +1,31 @@
-import { serve } from 'https://deno.land/std@0.203.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https://deno.land/std@0.203.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+}
+
 async function getCallerFromToken(token: string | null) {
   if (!token) return null
   try {
     const { data, error } = await supabase.auth.getUser(token)
-    if (error || !data?.user) return null
-    return data.user
+    return (error || !data?.user) ? null : data.user
   } catch {
     return null
   }
 }
 
 async function handler(req: Request) {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-      }
-    })
+    return new Response('ok', { status: 200, headers: corsHeaders })
   }
   if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 })
+    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   const authHeader = req.headers.get('Authorization')
@@ -48,17 +44,16 @@ async function handler(req: Request) {
     (callerRole === 'admin' && (role === 'coordinator' || role === 'conductor')) ||
     (callerRole === 'coordinator' && role === 'conductor')
   if (!callerRole || !allowed) {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
-  // Crear usuario con service_role
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({ email, password, email_confirm: true })
   if (authError) {
-    return new Response(JSON.stringify({ error: authError.message }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: authError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
   const userId = authData?.user?.id
   if (!userId) {
-    return new Response(JSON.stringify({ error: 'User creation failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'User creation failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
   const { error: insertError } = await supabase.from('profiles').insert({
@@ -69,12 +64,12 @@ async function handler(req: Request) {
     company_id: company_id ?? caller?.company_id ?? null
   })
   if (insertError) {
-    return new Response(JSON.stringify({ error: insertError.message }), { status: 400, headers: { 'Content-Type':'application/json' } })
+    return new Response(JSON.stringify({ error: insertError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type':'application/json' } })
   }
 
   return new Response(JSON.stringify({ user: { id: userId, email, full_name, role } }), {
     status: 200,
-    headers: { 'Content-Type': 'application/json' }
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
 }
 

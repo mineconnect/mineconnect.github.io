@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { supabase } from './lib/supabaseClient'
 
 export type UserProfile = {
   id: string
@@ -8,23 +9,23 @@ export type UserProfile = {
   company_id: string | null
 }
 
-const ENDPOINT_PROFILE = '/api/profile' // ajusta si tienes otro endpoint
+// No usamos endpoints internos; este ENDPOINT abreviado se mantiene fuera de la lógica
+// ENDPOINT_PROFILE eliminado intencionalmente
 
 function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // no fetch retry key; solo usa reintento explícito
   const [retryKey, setRetryKey] = useState(0)
 
-  // fetch profile con timeout de 30s usando Promise.race
+  // Fetch profile con timeout de 30s y retry sin logout
   async function fetchProfile() {
     setLoading(true)
     setError(null)
 
     const timeoutMs = 30000
     let finished = false
-    const timeoutId = window.setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       if (!finished) {
         setError('Error de conexión')
         setLoading(false)
@@ -32,37 +33,48 @@ function App() {
     }, timeoutMs)
 
     try {
-      const res = await fetch(ENDPOINT_PROFILE, { method: 'GET', credentials: 'include' })
-      if (!res.ok) {
-        if (!finished) {
-          setError('Error de conexión')
-          setLoading(false)
-        }
-      } else {
-        const data = await res.json()
-        if (data && data.id) {
-          setProfile(data as UserProfile)
-        } else {
-          if (!finished) {
-            setError('Error de conexión')
-            setLoading(false)
-          }
-        }
+      // Obtener sesión y usuario
+      const { data: sessionData } = await (supabase as any).auth.getSession()
+      const session = sessionData?.session ?? null
+
+      if (!session || !session.user) {
+        // Sin sesión: no hacer logout automático
+        setProfile(null)
+        setLoading(false)
+        finished = true
+        clearTimeout(timeout)
+        return
       }
-    } catch (e) {
+
+      const user = session.user
+      // Cargar perfil desde la tabla profiles
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) {
+        setError('Error de conexión')
+      } else if (profileData) {
+        setProfile(profileData as UserProfile)
+      } else {
+        setProfile(null)
+      }
+    } catch {
       if (!finished) {
         setError('Error de conexión')
-        setLoading(false)
       }
     } finally {
       finished = true
-      clearTimeout(timeoutId)
+      clearTimeout(timeout)
+      setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchProfile()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey])
 
   const retry = () => setRetryKey((k) => k + 1)
@@ -71,17 +83,21 @@ function App() {
   if (error) {
     return (
       <div>
-        <div>{error}</div>
+        <div>Error: {error}</div>
         <button onClick={retry}>Reintentar</button>
       </div>
     )
   }
 
-  // Interfaz mínima de la app
+  if (!profile) {
+    return <div>Login requerido</div>
+  }
+
+  // Render básico
   return (
     <div>
-      Bienvenido, {profile?.full_name ?? 'Usuario'} — {profile?.role}
-      {/* Aquí puedes integrar HistoryPanel y DriverSimulator pasándole profile si corresponde */}
+      Bienvenido {profile.full_name} — {profile.role}
+      {/* Aquí podrías montar HistoryPanel y DriverSimulator, pasando profile si corresponde */}
     </div>
   )
 }

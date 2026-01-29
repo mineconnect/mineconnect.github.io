@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { Modal } from './Modal' // Asegúrate de que exista este componente
+import { Modal } from './Modal'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Trip } from '../types'
+import type { UserProfile } from '../App'
 
 type HistoryPanelProps = {
-  userProfile: any // adaptalo a tu modelo; incluye role y company_id
+  userProfile: UserProfile | null
 }
 
 type GPSPointDB = {
@@ -21,19 +22,17 @@ type GPSPointDB = {
 
 export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
   const [trips, setTrips] = useState<Trip[]>([])
-  const [, setLoading] = useState(true)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [points, setPoints] = useState<GPSPointDB[]>([])
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
 
-  // Real-time: suscripción a gps_points usando Supabase v2 channel
+  // Real-time: suscripción a gps_points (Postgres changes, v2)
   useEffect(() => {
     fetchTrips()
-
     const companyFilter = userProfile?.company_id
-    const channel = supabase.channel('gps_updates')
+    const channel = supabase.channel('gps_points_updates')
     channel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'gps_points' },
@@ -41,23 +40,24 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
           const newPoint = payload.new as GPSPointDB
           if (!newPoint) return
           if (companyFilter && newPoint.company_id !== companyFilter) return
-          if (selectedTrip && (selectedTrip.id as string) === newPoint.trip_id) {
+          if (selectedTrip && selectedTrip.id === newPoint.trip_id) {
             loadPointsForTrip(newPoint.trip_id)
           }
         }
       )
       .subscribe()
-
+    // cleanup debe devolver void
+   return () => { channel.unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, selectedTrip?.id])
 
-  // Abrir modal cuando haya Trip seleccionado
+  // Abrir modal al seleccionar un viaje
   useEffect(() => {
     if (selectedTrip) {
       console.log("Viaje seleccionado:", selectedTrip.id)
       setModalOpen(true)
       initMapIfNeeded()
-      // Carga de puntos con ligero debounce para evitar aborts
+      // Cargar puntos con un debounce mínimo
       setTimeout(() => loadPointsForTrip(selectedTrip.id), 500)
       if (mapRef.current) mapRef.current.invalidateSize?.()
     }
@@ -71,16 +71,6 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapRef.current!)
-  }
-
-  function clearMap() {
-    if (mapRef.current) {
-      mapRef.current.eachLayer((layer) => {
-        if ((layer as any).remove) (layer as any).remove()
-      })
-      mapRef.current.remove()
-      mapRef.current = null
-    }
   }
 
   function drawPathOnMap(pointsToPlot: GPSPointDB[]) {
@@ -100,7 +90,6 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
   }
 
   async function fetchTrips() {
-    setLoading(true)
     let q = supabase.from('trips').select('*')
     if (userProfile?.role !== 'admin') {
       q = q.eq('company_id', userProfile?.company_id)
@@ -112,7 +101,6 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
     } else {
       setTrips(data as Trip[])
     }
-    setLoading(false)
   }
 
   async function loadPointsForTrip(tripId: string) {
@@ -130,15 +118,15 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
     setModalOpen(false)
     setSelectedTrip(null)
     setPoints([])
-    clearMap()
+    // clearMap(); // opcional
   }
 
-  // Carga de trips al inicio
   useEffect(() => {
     fetchTrips()
   }, [userProfile])
 
-  // Contenido
+  const mapContainerStyle: React.CSSProperties = { height: 400, width: '100%', zIndex: 9999 }
+
   return (
     <div>
       <h2>Historial de Viajes</h2>
@@ -152,7 +140,7 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
 
       {modalOpen && selectedTrip && (
         <Modal onClose={closeModal} title={`Trip ${selectedTrip.id} Details`}>
-          <div id={`map-${selectedTrip.id}`} style={{ height: 400, width: '100%', zIndex: 1000 }} ref={mapContainerRef} />
+          <div id={`map-${selectedTrip.id}`} style={mapContainerStyle} ref={undefined} />
           <div style={{ paddingTop: 8 }}>
             <strong>Points:</strong> {points.length}
           </div>

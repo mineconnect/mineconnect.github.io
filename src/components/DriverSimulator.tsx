@@ -9,6 +9,72 @@ interface DriverSimulatorProps {
   onTripUpdate: () => void;
 }
 
+type GPSPoint = {
+  id?: number;
+  trip_id: string;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  company_id: string | null;
+  created_at?: number;
+};
+
+// IndexedDB helpers
+const DB_NAME = 'gps_sync';
+const STORE_NAME = 'points';
+
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function addPointToQueue(p: GPSPoint): Promise<number | undefined> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.add(p);
+    req.onsuccess = () => resolve(req.result as number);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function getAllQueuedPoints(): Promise<GPSPoint[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result as GPSPoint[]);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function removeQueuedPoints(ids: number[]): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const store = tx.objectStore(STORE_NAME);
+  for (const id of ids) {
+    store.delete(id);
+  }
+  return new Promise((resolve) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
+
+// Persist GPS point to IndexedDB on each GPS update
+const GPS_QUEUE_INTERVAL_MS = 30000; // 30 seconds batch
+
 export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorProps) {
   const [isTracking, setIsTracking] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(0);
@@ -20,10 +86,16 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
+  // Initialize batch sync timer
+  useEffect(() => {
+    const interval = setInterval(() => batchSync(), GPS_QUEUE_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     let interval: any;
     if (isTracking && currentTrip) {
-      interval = setInterval(() => setTripDuration(prev => prev + 1), 1000);
+      interval = setInterval(() => setTripDuration((p) => p + 1), 1000);
     }
     return () => clearInterval(interval);
   }, [isTracking, currentTrip]);
@@ -38,7 +110,7 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
 
   const addGPSLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString('es-AR');
-    setGpsLogs(prev => [...prev.slice(-15), { timestamp, message }]);
+    setGpsLogs((prev) => [...prev.slice(-15), { timestamp, message }]);
   };
 
   const startGPSWatch = (tripId: string) => {
@@ -48,30 +120,24 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
         const speedKmh = speed ? Math.round(speed * 3.6) : 0;
         setCurrentSpeed(speedKmh);
         addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
-        // Persist GPS log with company context for multi-tenant isolation
+        // Persist GPS point to queue (IndexedDB)
+        if (!tripId) {
+          addGPSLog('⚠ GPS: missing tripId, skipping insert to queue');
+          return;
+        }
+        const point: GPSPoint = {
+          trip_id: tripId,
+          latitude,
+          longitude,
+          speed: speedKmh,
+          company_id: user?.company_id ?? null,
+          created_at: Date.now(),
+        } as GPSPoint;
+        // save to queue
         try {
-          if (!tripId) {
-            addGPSLog('⚠ GPS: missing tripId, skipping insert');
-            return;
-          }
-          const payload = { trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null };
-          console.log("DEBUG GPS PAYLOAD:", payload);
-          // Validate that the trip exists before insert
-          const check = await supabase.from('trips').select('id').eq('id', tripId).single();
-          if (check.data && check.data.id) {
-            await supabase.from('gps_points').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: payload.company_id });
-          } else {
-            addGPSLog('⚠ GPS: trip_id not found, skipping GPS insert');
-          }
-        } catch (err) {
-          console.error('GPS insert error', err);
-          addGPSLog('⚠ GPS insert error, retrying later');
-          // Fallback: try trip_logs (legacy) if gps_points insert fails or table missing
-          try {
-            await supabase.from('trip_logs').insert({ trip_id: tripId, latitude: latitude, longitude: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
-          } catch (e) {
-            addGPSLog('⚠ GPS insert fallback failed');
-          }
+          await addPointToQueue(point);
+        } catch (e) {
+          addGPSLog('⚠ GPS: failed to queue point');
         }
       },
       (err) => {
@@ -83,12 +149,38 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
     );
   };
 
+  // Batch sync to server (30s)
+  async function batchSync() {
+    try {
+      const queued = await getAllQueuedPoints();
+      if (!queued || queued.length === 0) return;
+      const payloads = queued.map(p => ({
+        trip_id: p.trip_id,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        speed: p.speed,
+        company_id: p.company_id
+      }));
+      // Try batch insert to gps_points
+      const { error } = await supabase.from('gps_points').insert(payloads);
+      if (!error) {
+        // remove all queued points that were sent
+        const ids = queued.map(q => q.id!).filter((id) => typeof id === 'number');
+        await removeQueuedPoints(ids);
+      } else {
+        // keep for next retry
+        console.warn('Batch GPS sync failed', error);
+      }
+    } catch (e) {
+      console.error('Batch GPS sync error', e);
+    }
+  }
+
   const startTracking = async () => {
     console.log('Starting GPS tracking for user:', user?.id ?? 'unknown');
     if (!user) return setError('Usuario no autenticado');
     try {
-      // Determinar company_id para la ejecución de trips
-      const tripCompanyId = user.email === 'fbarrosmarengo@gmail.com' ? (user.company_id ?? '') : (user.company_id ?? '');
+      const tripCompanyId = user.company_id;
       const { data, error: tripError } = await supabase.from('trips').insert({
         plate: user.role === 'admin' ? 'ADMIN-001' : 'AUTO-001',
         vehicle_id: crypto.randomUUID(),

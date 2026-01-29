@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import type { Trip } from '../types'
 
 type HistoryPanelProps = {
-  userProfile: any // adaptalo a tu modelo; debe incluir role y company_id
+  userProfile: any // adaptalo a tu modelo; incluye role y company_id
 }
 
 type GPSPointDB = {
@@ -21,20 +21,19 @@ type GPSPointDB = {
 
 export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
   const [trips, setTrips] = useState<Trip[]>([])
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [points, setPoints] = useState<GPSPointDB[]>([])
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
-  const tripLoadTimer = useRef<number | null>(null)
 
   // Real-time: suscripción a gps_points usando Supabase v2 channel
   useEffect(() => {
     fetchTrips()
 
     const companyFilter = userProfile?.company_id
-    const channel = supabase.channel('gps_points_updates')
+    const channel = supabase.channel('gps_updates')
     channel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'gps_points' },
@@ -42,38 +41,29 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
           const newPoint = payload.new as GPSPointDB
           if (!newPoint) return
           if (companyFilter && newPoint.company_id !== companyFilter) return
-          if (selectedTrip && selectedTrip.id === newPoint.trip_id) {
+          if (selectedTrip && (selectedTrip.id as string) === newPoint.trip_id) {
             loadPointsForTrip(newPoint.trip_id)
           }
         }
       )
       .subscribe()
 
-return () => { channel.unsubscribe(); };  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, selectedTrip?.id])
 
-  // Abrir modal al seleccionar un viaje
+  // Abrir modal cuando haya Trip seleccionado
   useEffect(() => {
     if (selectedTrip) {
       console.log("Viaje seleccionado:", selectedTrip.id)
       setModalOpen(true)
       initMapIfNeeded()
-      // Debounce para evitar abortos/rct de conexión al cargar puntos
-      if (tripLoadTimer.current) window.clearTimeout(tripLoadTimer.current)
-      tripLoadTimer.current = window.setTimeout(() => loadPointsForTrip(selectedTrip.id), 500)
-    } else {
-      // limpiar timer si se deselecciona
-      if (tripLoadTimer.current) {
-        window.clearTimeout(tripLoadTimer.current)
-        tripLoadTimer.current = null
-      }
-    }
-    return () => {
-      if (tripLoadTimer.current) window.clearTimeout(tripLoadTimer.current)
+      // Carga de puntos con ligero debounce para evitar aborts
+      setTimeout(() => loadPointsForTrip(selectedTrip.id), 500)
+      if (mapRef.current) mapRef.current.invalidateSize?.()
     }
   }, [selectedTrip])
 
-  // Configurar mapa
+  // Inicializar mapa
   function initMapIfNeeded() {
     if (!mapContainerRef.current) return
     if (mapRef.current) return
@@ -148,8 +138,7 @@ return () => { channel.unsubscribe(); };  // eslint-disable-next-line react-hook
     fetchTrips()
   }, [userProfile])
 
-  if (loading) return <div>Loading trips…</div>
-
+  // Contenido
   return (
     <div>
       <h2>Historial de Viajes</h2>
@@ -163,8 +152,7 @@ return () => { channel.unsubscribe(); };  // eslint-disable-next-line react-hook
 
       {modalOpen && selectedTrip && (
         <Modal onClose={closeModal} title={`Trip ${selectedTrip.id} Details`}>
-          {/* Mapa con altura explícita y z-index alto para Leaflet */}
-          <div id={`map-${selectedTrip.id}`} style={{ height: 400, width: '100%', zIndex: 9999 }} ref={mapContainerRef} />
+          <div id={`map-${selectedTrip.id}`} style={{ height: 400, width: '100%', zIndex: 1000 }} ref={mapContainerRef} />
           <div style={{ paddingTop: 8 }}>
             <strong>Points:</strong> {points.length}
           </div>

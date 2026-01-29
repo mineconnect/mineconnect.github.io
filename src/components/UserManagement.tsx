@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { UserProfile } from '../App' // exportado en App.tsx
+import { UserProfile } from '../types'
 import { supabase } from '../lib/supabaseClient'
 
 type UserManagementProps = {

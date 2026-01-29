@@ -4,7 +4,7 @@ import { Modal } from './Modal'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Trip } from '../types'
-import { UserProfile } from '../App'
+import { UserProfile } from '../types'
 
 type HistoryPanelProps = {
   trips?: Trip[]
@@ -23,7 +23,7 @@ type GPSPointDB = {
 
 export default function HistoryPanel({ user }: HistoryPanelProps) {
   const [trips, setTrips] = useState<Trip[]>([])
-  const [loading, setLoading] = useState(true)
+
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [points, setPoints] = useState<GPSPointDB[]>([])
@@ -88,7 +88,6 @@ export default function HistoryPanel({ user }: HistoryPanelProps) {
   }
 
   async function fetchTrips() {
-    setLoading(true)
     let q = supabase.from('trips').select('*')
     if (user?.role !== 'admin') q = q.eq('company_id', user?.company_id)
     const { data, error } = await q.order('start_time', { ascending: true })
@@ -98,7 +97,6 @@ export default function HistoryPanel({ user }: HistoryPanelProps) {
     } else {
       setTrips(data as Trip[])
     }
-    setLoading(false)
   }
 
   async function loadPointsForTrip(tripId: string) {

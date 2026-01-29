@@ -50,9 +50,10 @@ function App() {
         setShowAuth(true)
       } else if (profileData) {
         // Normalizar company_id a string
-        const p = profileData as any
-        p.company_id = p.company_id ?? ''
-        setProfile(p as UserProfile)
+        setProfile({
+          ...profileData,
+          company_id: profileData.company_id ?? ''
+        } as UserProfile)
         setShowAuth(false)
       } else {
         setProfile(null)
@@ -153,5 +154,5 @@ function App() {
   )
 }
 
-export type { UserProfile }
+
 export default App

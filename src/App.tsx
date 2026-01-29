@@ -3,10 +3,8 @@ import { supabase } from './lib/supabaseClient'
 import HistoryPanel from './components/HistoryPanel'
 import UserManagement from './components/UserManagement'
 import DriverSimulator from './components/DriverSimulator'
-
+import { Satellite, Globe, Users, Map, LogOut } from 'lucide-react'
 import { UserProfile } from './types'
-
-// ENDPOINT_PROFILE eliminado intencionalmente
 
 function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -49,7 +47,6 @@ function App() {
         setProfile(null)
         setShowAuth(true)
       } else if (profileData) {
-        // Normalizar company_id a string
         setProfile({
           ...profileData,
           company_id: profileData.company_id ?? ''
@@ -76,7 +73,7 @@ function App() {
 
   const retry = () => setRetryKey((k) => k + 1)
 
-  // Auth simple inline
+  // Auth component with satellite view
   function Auth({ onLoginSuccess }: { onLoginSuccess: () => void }) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -93,66 +90,229 @@ function App() {
     }
 
     return (
-      <div style={{ padding: 20 }}>
-        <h2>Iniciar sesión</h2>
-        <form onSubmit={login}>
-          <div>
-            <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
+      <div className="relative min-h-screen overflow-hidden">
+        {/* Animated Earth Background */}
+        <div className="absolute inset-0 bg-black">
+          <div 
+            className="absolute inset-0 opacity-80"
+            style={{
+              backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=2000&h=2000&fit=crop')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              animation: 'orbit 60s linear infinite'
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-900/20 to-black/50" />
+        </div>
+
+        {/* Login Box with Glassmorphism */}
+        <div className="relative z-10 min-h-screen flex items-center justify-center px-4">
+          <div className="w-full max-w-md">
+            {/* Logo and Title */}
+            <div className="text-center mb-8">
+              <div className="flex justify-center mb-4">
+                <Satellite className="w-16 h-16 text-blue-400" />
+              </div>
+              <h1 className="text-4xl font-bold text-white mb-2">MineConnect SAT Pro</h1>
+              <p className="text-blue-200 text-sm">Monitoreo Satelital Profesional</p>
+            </div>
+
+            {/* Glassmorphism Container */}
+            <div 
+              className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-8 shadow-2xl"
+              style={{
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+              }}
+            >
+              <form onSubmit={login} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-blue-100 mb-2">Email</label>
+                  <input 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    required
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+                    placeholder="usuario@mineconnect.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-blue-100 mb-2">Contraseña</label>
+                  <input 
+                    type="password" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    required
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+                {err && (
+                  <div className="p-3 bg-red-500/20 border border-red-400/30 rounded-lg">
+                    <div className="text-red-200 text-sm">{err}</div>
+                  </div>
+                )}
+                <button 
+                  type="submit" 
+                  disabled={loadingAuth}
+                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
+                >
+                  {loadingAuth ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Conectando...
+                    </span>
+                  ) : 'Iniciar Sesión'}
+                </button>
+              </form>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center mt-8 text-blue-200/60 text-sm">
+              <p>Plataforma de Monitoreo Satelital © 2026</p>
+            </div>
           </div>
-          <div>
-            <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-          </div>
-          {err && <div style={{ color: 'red' }}>{err}</div>}
-          <button type="submit" disabled={loadingAuth}>{loadingAuth ? 'Cargando' : 'Login'}</button>
-        </form>
+        </div>
+
+        <style>{`
+          @keyframes orbit {
+            from { transform: scale(1.2) rotate(0deg); }
+            to { transform: scale(1.2) rotate(360deg); }
+          }
+        `}</style>
       </div>
     )
   }
 
-  // Render condicional
-  if (loading) return <div>Loading profile…</div>
+  // Loading screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Satellite className="w-12 h-12 text-blue-400 animate-pulse" />
+          </div>
+          <div className="text-white text-lg">Conectando con satélite...</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error screen
   if (error) {
     return (
-      <div>
-        <div>Error: {error}</div>
-        <button onClick={retry}>Reintentar</button>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-red-400 text-xl mb-4">Error de Conexión</div>
+          <div className="text-slate-300 mb-6">{error}</div>
+          <button 
+            onClick={retry}
+            className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+          >
+            Reintentar Conexión
+          </button>
+        </div>
       </div>
     )
   }
 
+  // Show auth screen if not authenticated
   if (showAuth || !profile) {
-    return (
-      <Auth onLoginSuccess={fetchProfile} />
-    )
+    return <Auth onLoginSuccess={fetchProfile} />
   }
 
-  // Layout con Sidebar
-  const sideButton = (label: string, onClick: ()=>void, active: boolean) => (
-    <button className={`p-2 rounded hover:bg-slate-800 ${active ? 'bg-slate-800' : ''}`} onClick={onClick}>{label}</button>
-  )
+  // Main Dashboard
+  const sidebarItems = [
+    { id: 'historial', label: 'Monitor de Viajes', icon: Map, allowed: true },
+    { id: 'conductores', label: 'Conductores', icon: Users, allowed: profile?.role === 'admin' || profile?.role === 'coordinator' },
+    { id: 'simulador', label: 'Simulador', icon: Globe, allowed: profile?.role === 'conductor' },
+  ]
 
   return (
-    <div className="h-screen flex">
-      <aside className="w-64 bg-slate-900 text-white p-4">
-        <div className="text-xl font-semibold mb-6">MineConnect SAT Pro</div>
-        <nav className="flex flex-col gap-2">
-          {sideButton('Historial', ()=>setActiveTab('historial'), activeTab==='historial')}
-          {(profile?.role === 'admin' || profile?.role === 'coordinator') && sideButton('Conductores', ()=>setActiveTab('conductores'), activeTab==='conductores')}
-          {profile?.role === 'conductor' && sideButton('Simulador', ()=>setActiveTab('simulador'), activeTab==='simulador')}
+    <div className="min-h-screen bg-slate-950 flex">
+      {/* Modern Sidebar */}
+      <aside className="w-20 bg-slate-900/50 backdrop-blur-sm border-r border-slate-800/50 flex flex-col items-center py-8 space-y-8">
+        {/* Logo */}
+        <div className="flex-shrink-0">
+          <Satellite className="w-8 h-8 text-blue-400" />
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 flex flex-col items-center space-y-6">
+          {sidebarItems.filter(item => item.allowed).map(item => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`group relative p-3 rounded-xl transition-all duration-300 ${
+                  activeTab === item.id 
+                    ? 'bg-blue-500/20 text-blue-400 shadow-lg shadow-blue-500/20' 
+                    : 'text-slate-400 hover:text-blue-400 hover:bg-slate-800/50'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {activeTab === item.id && (
+                  <div className="absolute inset-0 rounded-xl bg-blue-400/10 animate-pulse" />
+                )}
+                {/* Tooltip */}
+                <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  {item.label}
+                </div>
+              </button>
+            )
+          })}
         </nav>
-        <div className="mt-6 border-t border-slate-800 pt-3 text-sm text-slate-400">
-          Empresa: {profile?.company_id}
+
+        {/* User section */}
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
+            {profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+          </div>
+          <button
+            onClick={() => {
+              supabase.auth.signOut()
+              setShowAuth(true)
+            }}
+            className="p-2 text-slate-400 hover:text-red-400 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </aside>
 
-      <main className="flex-1 p-4 bg-gray-100">
-        {activeTab === 'historial' && <HistoryPanel />}
-        {activeTab === 'conductores' && <UserManagement userProfile={profile} />}
-        {activeTab === 'simulador' && <DriverSimulator user={profile} onTripUpdate={()=>{}}/>}
+      {/* Main Content Area */}
+      <main className="flex-1 bg-slate-950 overflow-hidden">
+        {/* Header */}
+        <header className="bg-slate-900/30 backdrop-blur-sm border-b border-slate-800/50 px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white">
+                {sidebarItems.find(item => item.id === activeTab)?.label}
+              </h1>
+              <p className="text-slate-400 text-sm mt-1">
+                Empresa: {profile?.company_id} | Usuario: {profile?.full_name}
+              </p>
+            </div>
+            <div className="flex items-center space-x-2 text-xs text-slate-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span>Satélite Conectado</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Dynamic Content */}
+        <div className="h-[calc(100vh-88px)]">
+          {activeTab === 'historial' && <HistoryPanel />}
+          {activeTab === 'conductores' && <UserManagement userProfile={profile} />}
+          {activeTab === 'simulador' && <DriverSimulator user={profile} onTripUpdate={()=>{}}/>}
+        </div>
       </main>
     </div>
   )
 }
-
 
 export default App

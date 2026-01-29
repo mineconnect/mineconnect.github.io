@@ -73,7 +73,7 @@ function App() {
 
   const retry = () => setRetryKey((k) => k + 1)
 
-  // Auth component with satellite view
+  // Auth component with fotorrealistic Earth
   function Auth({ onLoginSuccess }: { onLoginSuccess: () => void }) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -91,89 +91,91 @@ function App() {
 
     return (
       <div className="relative min-h-screen bg-black overflow-hidden">
-        {/* Deep Space Background */}
+        {/* Deep Space - Almost No Stars */}
         <div className="absolute inset-0 bg-black">
-          {/* Subtle Distant Stars */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="stars-field" />
+          {/* Minimal Stars - Barely Perceptible */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="minimal-stars" />
           </div>
         </div>
 
-        {/* Earth - The Blue Marble */}
-        <div className="absolute inset-0 flex items-center justify-end">
-          <div className="relative w-[70vw] h-[100vh]">
-            {/* Earth Container */}
+        {/* Earth - Centered Photorealistic Globe */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative w-[600px] h-[600px] md:w-[800px] md:h-[800px]">
+            {/* Earth Sphere - Americas View */}
             <div 
-              className="absolute inset-0"
+              className="absolute inset-0 rounded-full overflow-hidden earth-globe"
               style={{
                 backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=2000&h=2000&fit=crop&q=100')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'right center',
-                filter: 'brightness(1.1) contrast(1.2) saturate(1.1)'
+                backgroundSize: '180% 180%',
+                backgroundPosition: 'center 30%',
+                boxShadow: 'inset -40px -40px 80px rgba(0,0,0,0.8), inset 20px 20px 40px rgba(100,200,255,0.2)'
               }}
             >
-              {/* Terminator Line - Dramatic Day/Night Transition */}
-              <div className="absolute inset-0">
-                <div 
-                  className="absolute inset-0"
-                  style={{
-                    background: 'linear-gradient(90deg, transparent 0%, transparent 40%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,1) 80%)'
-                  }}
-                />
-              </div>
-              
-              {/* Atmospheric Glow - Only on Lit Side */}
+              {/* Realistic Cloud Layer */}
               <div 
-                className="absolute inset-0"
+                className="absolute inset-0 opacity-60"
                 style={{
-                  background: 'radial-gradient(ellipse at 35% 50%, transparent 40%, rgba(0,150,255,0.1) 45%, rgba(0,200,255,0.3) 48%, transparent 52%)',
-                  filter: 'blur(2px)'
+                  backgroundImage: `url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=2000&h=2000&fit=crop&q=100')`,
+                  backgroundSize: '180% 180%',
+                  backgroundPosition: 'center 25%',
+                  mixBlendMode: 'screen',
+                  filter: 'blur(0.5px) brightness(1.2)'
                 }}
               />
               
-              {/* Inner Atmosphere - Intense Cyan on Sunlit Edge */}
+              {/* Atmospheric Glow - Blue Halo */}
               <div 
-                className="absolute inset-0"
+                className="absolute inset-0 rounded-full"
                 style={{
-                  background: 'radial-gradient(ellipse at 35% 50%, transparent 45%, rgba(0,255,255,0.2) 47%, transparent 49%)',
+                  background: 'radial-gradient(circle at 40% 40%, rgba(100,150,255,0.3) 0%, rgba(50,100,200,0.2) 40%, transparent 70%)',
+                  filter: 'blur(3px)'
+                }}
+              />
+              
+              {/* Inner Atmosphere - Intense Blue Rim */}
+              <div 
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'radial-gradient(circle at 40% 40%, transparent 60%, rgba(100,200,255,0.4) 75%, transparent 90%)',
                   filter: 'blur(1px)'
                 }}
               />
+              
+              {/* Day/Night Terminator - Soft Transition */}
+              <div 
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 30%, transparent 50%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.8) 100%)',
+                  mixBlendMode: 'multiply'
+                }}
+              />
             </div>
-
-            {/* Earth Shadow - Dark Side Merge with Space */}
-            <div 
-              className="absolute inset-0"
-              style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.3) 50%, black 75%)',
-                mixBlendMode: 'multiply'
-              }}
-            />
           </div>
         </div>
 
-        {/* Login Box - Left Side Floating in Space */}
+        {/* Login Box - Left Side Minimalist */}
         <div className="relative z-20 min-h-screen flex items-center justify-start px-8 md:px-16">
           <div className="w-full max-w-sm">
             {/* Brand */}
             <div className="mb-12">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="p-3 bg-cyan-500/20 rounded-xl border border-cyan-400/30">
-                  <Satellite className="w-8 h-8 text-cyan-400" />
+                <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-400/20">
+                  <Satellite className="w-8 h-8 text-blue-400" />
                 </div>
                 <div>
                   <h1 className="text-4xl font-bold text-white tracking-tight">MineConnect</h1>
-                  <p className="text-xl text-cyan-300 font-light">SAT PRO</p>
+                  <p className="text-xl text-blue-300 font-light">SAT PRO</p>
                 </div>
               </div>
-              <p className="text-cyan-200/40 text-sm">Satellite Monitoring System</p>
+              <p className="text-blue-200/30 text-sm">Sistema de Monitoreo Satelital</p>
             </div>
 
-            {/* Ultra-Minimalist Glassmorphism Login */}
+            {/* Ultra-Minimalist Glassmorphism */}
             <div 
-              className="backdrop-blur-xl bg-white/3 rounded-2xl p-6 border border-white/5"
+              className="backdrop-blur-xl bg-white/2 rounded-2xl p-6 border border-white/5"
               style={{
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.02)'
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.01)'
               }}
             >
               <form onSubmit={login} className="space-y-5">
@@ -183,8 +185,8 @@ function App() {
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     required
-                    placeholder="Email"
-                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-white placeholder-cyan-200/30 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50 transition-all text-sm"
+                    placeholder="Correo electrónico"
+                    className="w-full px-4 py-3 bg-black/30 border border-white/5 rounded-lg text-white placeholder-blue-200/20 focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400/30 transition-all text-sm"
                   />
                 </div>
                 <div>
@@ -193,8 +195,8 @@ function App() {
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
                     required
-                    placeholder="Password"
-                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg text-white placeholder-cyan-200/30 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 focus:border-cyan-400/50 transition-all text-sm"
+                    placeholder="Contraseña"
+                    className="w-full px-4 py-3 bg-black/30 border border-white/5 rounded-lg text-white placeholder-blue-200/20 focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400/30 transition-all text-sm"
                   />
                 </div>
                 {err && (
@@ -205,7 +207,7 @@ function App() {
                 <button 
                   type="submit" 
                   disabled={loadingAuth}
-                  className="w-full py-3 bg-cyan-500/20 border border-cyan-400/30 text-cyan-100 font-medium rounded-lg hover:bg-cyan-500/30 hover:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+                  className="w-full py-3 bg-blue-500/10 border border-blue-400/20 text-blue-100 font-medium rounded-lg hover:bg-blue-500/15 hover:border-blue-400/30 focus:outline-none focus:ring-2 focus:ring-blue-400/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
                 >
                   {loadingAuth ? (
                     <span className="flex items-center justify-center">
@@ -213,40 +215,47 @@ function App() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Connecting...
+                      Conectando...
                     </span>
-                  ) : 'Connect to Satellite'}
+                  ) : 'Iniciar Sesión'}
                 </button>
               </form>
             </div>
 
             {/* Status */}
-            <div className="flex items-center justify-center space-x-2 mt-6 text-cyan-200/40 text-xs">
+            <div className="flex items-center justify-center space-x-2 mt-6 text-blue-200/30 text-xs">
               <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-              <span>System Online</span>
+              <span>Sistema En Línea</span>
             </div>
           </div>
         </div>
 
         <style>{`
-          .stars-field {
+          .minimal-stars {
             position: absolute;
             inset: 0;
             background-image: 
-              radial-gradient(1px 1px at 100px 200px, rgba(255,255,255,0.8), transparent),
-              radial-gradient(1px 1px at 300px 100px, rgba(255,255,255,0.6), transparent),
-              radial-gradient(0.5px 0.5px at 500px 300px, rgba(255,255,255,0.4), transparent),
-              radial-gradient(1px 1px at 700px 150px, rgba(255,255,255,0.7), transparent),
-              radial-gradient(0.5px 0.5px at 900px 400px, rgba(255,255,255,0.5), transparent),
-              radial-gradient(1px 1px at 1200px 250px, rgba(255,255,255,0.6), transparent),
-              radial-gradient(0.5px 0.5px at 1500px 350px, rgba(255,255,255,0.4), transparent);
-            background-size: 1600px 600px;
-            animation: drift 200s linear infinite;
+              radial-gradient(0.5px 0.5px at 200px 300px, rgba(255,255,255,0.8), transparent),
+              radial-gradient(0.5px 0.5px at 600px 100px, rgba(255,255,255,0.6), transparent),
+              radial-gradient(0.5px 0.5px at 1000px 400px, rgba(255,255,255,0.4), transparent);
+            background-size: 1200px 600px;
+            animation: drift 300s linear infinite;
+          }
+          
+          .earth-globe {
+            animation: gentle-rotate 120s ease-in-out infinite;
           }
           
           @keyframes drift {
             from { transform: translateX(0); }
-            to { transform: translateX(-1600px); }
+            to { transform: translateX(-1200px); }
+          }
+          
+          @keyframes gentle-rotate {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(-1deg) scale(1.01); }
+            50% { transform: rotate(0deg) scale(1); }
+            75% { transform: rotate(1deg) scale(1.01); }
           }
         `}</style>
       </div>

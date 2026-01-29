@@ -219,11 +219,11 @@ export default function HistoryPanel({ user }: HistoryPanelProps) {
                     </div>
                     <div className="flex items-center space-x-2 text-slate-400">
                       <Activity className="w-3 h-3" />
-                      <span>Max: {trip.max_speed} km/h</span>
+                      <span>Vel Máx: {trip.max_speed} km/h</span>
                     </div>
                     <div className="flex items-center space-x-2 text-slate-400">
                       <Activity className="w-3 h-3" />
-                      <span>Prom: {trip.avg_speed} km/h</span>
+                      <span>Vel Prom: {trip.avg_speed} km/h</span>
                     </div>
                   </div>
 
@@ -286,7 +286,7 @@ export default function HistoryPanel({ user }: HistoryPanelProps) {
         )}
       </div>
 
-      {/* Modal for detailed view (optional) */}
+      {/* Modal para vista detallada */}
       {modalOpen && selectedTrip && (
         <Modal onClose={closeModal} title={`Viaje ${selectedTrip.id.substring(0, 8)} - Detalles Completos`}>
           <div className="space-y-4">

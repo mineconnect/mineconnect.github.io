@@ -96,7 +96,11 @@ export default function HistoryPanel({ trips, user }: HistoryPanelProps) {
   };
 
   const isAdmin = user?.role === 'admin' || user?.email === 'fbarrosmarengo@gmail.com';
-  const completedTrips = trips.filter(t => t.status === 'finalizado');
+  // Multi-tenant: filter by company_id for coordinators; admins see all
+  const canViewAll = user?.role === 'admin';
+  const completedTrips = trips.filter(t =>
+    t.status === 'finalizado' && (canViewAll || t.company_id === user?.company_id)
+  );
   const polylinePositions = selectedTrip?.logs.map(log => [log.lat, log.lng] as [number, number]) || [];
 
   return (

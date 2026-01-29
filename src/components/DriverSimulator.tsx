@@ -48,7 +48,14 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
         const speedKmh = speed ? Math.round(speed * 3.6) : 0;
         setCurrentSpeed(speedKmh);
         addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
-        await supabase.from('trip_logs').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh });
+        // Persist GPS log with company context for multi-tenant isolation
+        await (async () => {
+          await supabase.from('trip_logs').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
+        })().catch((err) => {
+          // Do not break tracking on transient errors; log and continue
+          console.error('GPS insert error', err);
+          addGPSLog('⚠ GPS insert error, retrying later');
+        });
       },
       (err) => {
         const msg = err.code === 3 ? "Tiempo de espera agotado" : "Error de señal";

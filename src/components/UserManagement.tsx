@@ -79,9 +79,9 @@ useEffect(() => {
     setLoading(true);
 
     let query = supabase.from('profiles').select('*').eq('role', 'CONDUCTOR');
-
-    if (isCoordinator) {
-      query = query.eq('company_id', userProfile.company_id);
+    // Multi-tenant: coordinators see only their company's conductors
+    if (userProfile?.role !== 'admin') {
+      query = query.eq('company_id', userProfile?.company_id);
     }
     // Superadmin will see all drivers from all companies
 

@@ -139,21 +139,13 @@ useEffect(() => {
         }
 
       } else {
-        // Create new user via Edge Function
+        // Create nuevo usuario via Edge Function
         const edgeRes = await createUserViaEdge(email, password, fullName, selectedRole, userProfile?.company_id ?? null)
         if (edgeRes?.error) throw edgeRes.error
         const newUserId = edgeRes?.user?.id
         if (!newUserId) throw new Error("Could not create user.")
 
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: newUserId,
-          full_name: fullName,
-          email,
-          role: selectedRole,
-          company_id: userProfile?.company_id,
-        })
-
-        if (profileError) throw profileError;
+        // Se asume que la Edge Function ya inserta el perfil; solo validamos éxito.
       }
       
       resetForm();

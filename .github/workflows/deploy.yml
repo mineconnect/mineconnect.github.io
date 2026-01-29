@@ -98,12 +98,18 @@ jobs:
       with:
         version: latest
 
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+
     - name: Deploy Edge Function
-      if: ${{ secrets.SUPABASE_TOKEN != '' && secrets.SUPABASE_PROJECT_REF != '' }}
       env:
         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_TOKEN }}
+        PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_REF }}
+      if: ${{ env.SUPABASE_ACCESS_TOKEN != '' && env.PROJECT_ID != '' }}
       run: |
-        supabase functions deploy create_user --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify
+        supabase functions deploy create_user --project-ref ${{ env.PROJECT_ID }} --no-verify
 
     - name: Setup Pages
       uses: actions/configure-pages@v3

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Clock, LogOut, Menu, Moon, Sun, Users, X, ShieldCheck, ChevronRight, Smartphone } from 'lucide-react';
+import { Activity, Clock, LogOut, Menu, Moon, Sun, Users, X, ShieldCheck, ChevronRight, User as LucideUser } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import DriverSimulator from './components/DriverSimulator';
 import HistoryPanel from './components/HistoryPanel';
@@ -8,14 +8,8 @@ import UserManagement from './components/UserManagement';
 import Login from './components/Login';
 import type { Session, User } from '@supabase/supabase-js';
 
-// Define UserProfile type based on your DB structure
-export interface UserProfile {
-  id: string;
-  full_name: string;
-  company_id: string;
-  role: 'SUPERADMIN' | 'COORDINADOR' | 'CONDUCTOR';
-  email?: string; // Add email to the profile
-}
+// Import UserProfile type from types
+import type { UserProfile } from './types';
 
 // Main App Component
 function App() {
@@ -24,6 +18,7 @@ function App() {
   const [activeView, setActiveView] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   // --- Effects ---
@@ -36,7 +31,9 @@ function App() {
 
     // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('SESION:', session);
       setLoading(true);
+      setAuthError(null);
       setSession(session);
       if (session?.user) {
         await fetchUserProfile(session.user);
@@ -56,11 +53,11 @@ function App() {
   useEffect(() => {
     if (userProfile) {
       switch (userProfile.role) {
-        case 'SUPERADMIN':
-        case 'COORDINADOR':
+        case 'admin':
+        case 'coordinator':
           setActiveView('history');
           break;
-        case 'CONDUCTOR':
+        case 'conductor':
           setActiveView('simulator');
           break;
         default:
@@ -71,25 +68,77 @@ function App() {
 
   // --- Data Fetching ---
   const fetchUserProfile = async (user: User) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    console.log('Buscando perfil para usuario:', user.id);
+    
+    // Crear un timeout de 5 segundos
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout: El perfil tardó demasiado en cargar')), 5000);
+    });
 
-    if (error) {
-      console.error("Error fetching user profile:", error);
-      await handleLogout(); // Force logout if profile is missing
-      return;
-    }
+    try {
+      const fetchPromise = supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-    if (data) {
-      const profile: UserProfile = { ...data, email: user.email };
-      // Override role for superadmin email
-      if (user.email === 'fbarrosmarengo@gmail.com') {
-        profile.role = 'SUPERADMIN';
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        
+        // Si el perfil no existe, creamos uno básico en lugar de hacer logout
+        if (error.code === 'PGRST116') {
+          console.log('Perfil no encontrado. Creando perfil básico...');
+          const defaultProfile: UserProfile = {
+            id: user.id,
+            full_name: user.email?.split('@')[0] || 'Usuario',
+            company_id: 'default',
+            role: 'conductor', // Rol por defecto
+            email: user.email,
+            created_at: new Date().toISOString()
+          };
+          
+          // Si es el superadmin, asignar rol correspondiente
+          if (user.email === 'fbarrosmarengo@gmail.com') {
+            defaultProfile.role = 'admin';
+          }
+          
+          setUserProfile(defaultProfile);
+          console.log('PERFIL:', defaultProfile);
+          
+          // Opcional: Crear el perfil en la base de datos
+          try {
+            await supabase.from('profiles').insert({
+              id: user.id,
+              full_name: defaultProfile.full_name,
+              company_id: defaultProfile.company_id,
+              role: defaultProfile.role
+            });
+            console.log('Perfil creado en la base de datos');
+          } catch (createError) {
+            console.warn('No se pudo crear el perfil en BD:', createError);
+          }
+        } else {
+          setAuthError('Error al cargar el perfil de usuario');
+          await handleLogout();
+        }
+        return;
       }
-      setUserProfile(profile);
+
+      if (data) {
+        const profile: UserProfile = { ...data, email: user.email };
+        // Override role for superadmin email
+        if (user.email === 'fbarrosmarengo@gmail.com') {
+          profile.role = 'admin';
+        }
+        setUserProfile(profile);
+        console.log('PERFIL:', profile);
+      }
+    } catch (timeoutError: any) {
+      console.error('Timeout al cargar perfil:', timeoutError);
+      setAuthError('La carga del perfil tardó demasiado. Inténtalo de nuevo.');
+      setLoading(false);
     }
   };
 
@@ -108,9 +157,9 @@ function App() {
 
   // --- RBAC ---
   const navItems = [
-    { id: 'history', icon: Clock, label: 'Historial SAT', roles: ['SUPERADMIN', 'COORDINADOR'] },
-    { id: 'users', icon: Users, label: 'Gestión de Conductores', roles: ['SUPERADMIN', 'COORDINADOR'] },
-    { id: 'simulator', icon: Activity, label: 'Simulador Pro', roles: ['CONDUCTOR'] },
+    { id: 'history', icon: Clock, label: 'Historial SAT', roles: ['admin', 'coordinator'] },
+    { id: 'users', icon: Users, label: 'Gestión de Conductores', roles: ['admin', 'coordinator'] },
+    { id: 'simulator', icon: Activity, label: 'Simulador Pro', roles: ['conductor'] },
   ];
 
   const accessibleNavItems = navItems.filter(item => userProfile && item.roles.includes(userProfile.role));
@@ -118,8 +167,20 @@ function App() {
   // --- Render Logic ---
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Activity className="w-16 h-16 text-blue-500 animate-spin" />
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center flex-col">
+        <Activity className="w-16 h-16 text-blue-500 animate-spin mb-4" />
+        <p className="text-slate-400">Cargando...</p>
+        {authError && (
+          <div className="mt-4 text-red-400 text-center max-w-md">
+            <p>{authError}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -131,11 +192,11 @@ function App() {
   const renderView = () => {
     switch (activeView) {
       case 'history':
-        return <HistoryPanel userProfile={userProfile} />;
+        return <HistoryPanel trips={[]} user={userProfile} />;
       case 'users':
         return <UserManagement userProfile={userProfile} />;
       case 'simulator':
-        return <DriverSimulator userProfile={userProfile} />;
+        return <DriverSimulator user={userProfile} onTripUpdate={() => {}} />;
       default:
         return (
             <div className="h-full flex items-center justify-center p-6">
@@ -174,23 +235,23 @@ function App() {
               {/* User Profile */}
               {userProfile && (
                  <div className={`bg-gradient-to-br p-4 rounded-2xl flex items-center space-x-3 shadow-inner border ${theme === 'dark' ? 'from-slate-800/50 to-slate-900/50 border-slate-700' : 'from-gray-100/50 to-gray-200/50 border-gray-300'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg hardware-accelerated bg-gradient-to-br ${
-                      `userProfile.role` === 'SUPERADMIN' ? 'from-emerald-500 to-emerald-700' :
-                      `userProfile.role` === 'COORDINADOR' ? 'from-purple-500 to-purple-700' :
-                      'from-blue-500 to-blue-700'
-                    }`}>
-                      <User className="w-6 h-6" />
-                    </div>
-                    <div className="overflow-hidden flex-1">
-                      <p className={`text-sm font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{userProfile.full_name}</p>
-                      <p className={`text-[10px] uppercase font-black tracking-widest ${
-                         `userProfile.role` === 'SUPERADMIN' ? 'text-emerald-400' :
-                         `userProfile.role` === 'COORDINADOR' ? 'text-purple-400' :
+<div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg hardware-accelerated bg-gradient-to-br ${
+                       userProfile.role === 'admin' ? 'from-emerald-500 to-emerald-700' :
+                       userProfile.role === 'coordinator' ? 'from-purple-500 to-purple-700' :
+                       'from-blue-500 to-blue-700'
+                     }`}>
+                       <LucideUser className="w-6 h-6" />
+                     </div>
+                     <div className="overflow-hidden flex-1">
+                       <p className={`text-sm font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{userProfile.full_name}</p>
+                       <p className={`text-[10px] uppercase font-black tracking-widest ${
+                         userProfile.role === 'admin' ? 'text-emerald-400' :
+                         userProfile.role === 'coordinator' ? 'text-purple-400' :
                          'text-slate-500'
-                      }`}>
-                        {userProfile.role}
-                      </p>
-                    </div>
+                       }`}>
+                         {userProfile.role}
+                       </p>
+                     </div>
                   </div>
               )}
             </div>

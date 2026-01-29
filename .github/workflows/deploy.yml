@@ -1,4 +1,9 @@
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 name: Deploy MineConnect SAT - Dual Deploy
 
 on:
@@ -124,8 +129,3 @@ jobs:
       id: deployment
       uses: actions/deploy-pages@v4
       if: github.ref == 'refs/heads/main'
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write

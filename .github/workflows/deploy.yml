@@ -82,6 +82,9 @@ jobs:
         touch final-deploy/.nojekyll
         touch final-deploy/sat/.nojekyll
         
+        # Ensure a root index.html exists that redirects to /sat/ (for root access)
+        echo '<!doctype html><html><head><meta http-equiv="refresh" content="0; url=/sat/"></head><body></body></html>' > final-deploy/index.html
+
         # Verify critical files exist
         echo "🔍 Verifying critical files:"
         ls -la final-deploy/sat/

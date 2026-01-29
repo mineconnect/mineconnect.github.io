@@ -1,9 +1,8 @@
-
 permissions:
   contents: read
   pages: write
   id-token: write
-  # Trigger a fresh run to apply changes from GitHub Actions source
+
 
 name: Deploy MineConnect SAT - Dual Deploy
 
@@ -91,6 +90,8 @@ jobs:
         
         # Ensure a root index.html exists that redirects to /sat/index.html (explicit file)
         echo '<!doctype html><html><head><meta http-equiv="refresh" content="0; url=/sat/index.html"></head><body></body></html>' > final-deploy/index.html
+        # Create CNAME at root of final-deploy (domain for Pages)
+        echo "mineconnect.com.ar" > final-deploy/CNAME
 
         # Verify critical files exist
         echo "🔍 Verifying critical files:"

@@ -22,6 +22,7 @@ async function getCallerFromToken(token: string | null) {
 }
 
 async function handler(req: Request) {
+  console.log('EDGE create_user: entering handler (preflight start)')
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders })
   }

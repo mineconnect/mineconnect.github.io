@@ -31,15 +31,31 @@ function App() {
 
     // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('AUTH STATE CHANGE - EVENTO:', _event);
       console.log('SESION:', session);
+      
+      // Si el evento es SIGNED_OUT, resetear todo inmediatamente
+      if (_event === 'SIGNED_OUT') {
+        console.log('USUARIO DESLOGUEADO - RESET COMPLETO');
+        setSession(null);
+        setUserProfile(null);
+        setActiveView('');
+        setAuthError(null);
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       setAuthError(null);
       setSession(session);
+      
       if (session?.user) {
         await fetchUserProfile(session.user);
       } else {
+        console.log('NO HAY SESIÓN - Limpiando estados');
         setUserProfile(null);
-        setActiveView(''); // Reset view on logout
+        setActiveView('');
+        setAuthError(null);
       }
       setLoading(false);
     });
@@ -146,8 +162,23 @@ function App() {
 
   // --- Handlers ---
   const handleLogout = async () => {
+    console.log('INICIANDO LOGOUT COMPLETO...');
+    
+    // Limpiar localStorage de Supabase
+    localStorage.removeItem('supabase.auth.token');
+    localStorage.removeItem('supabase.auth.refreshToken');
+    
+    // Resetear todos los estados manualmente
+    setSession(null);
+    setUserProfile(null);
+    setActiveView('');
+    setAuthError(null);
+    setLoading(false);
+    
+    // Llamar a signOut de Supabase
     await supabase.auth.signOut();
-    // The onAuthStateChange listener will handle resetting state
+    
+    console.log('LOGOUT COMPLETO - Estados reseteados');
   };
 
   const toggleTheme = () => {
@@ -166,7 +197,15 @@ function App() {
 
   const accessibleNavItems = navItems.filter(item => userProfile && item.roles.includes(userProfile.role));
 
-  // --- Render Logic ---
+  // --- Render Logic - PROTECCIÓN ESTRICTA ---
+  console.log('RENDER CHECK - Session:', !!session, 'Profile:', !!userProfile, 'Loading:', loading);
+  
+  // SIEMPRE mostrar Login si no hay sesión válida, sin importar loading
+  if (!session || !session.user) {
+    console.log('ACCESO DENEGADO - Redirigiendo a Login');
+    return <Login />;
+  }
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center flex-col">
@@ -185,10 +224,6 @@ function App() {
         )}
       </div>
     );
-  }
-
-  if (!session) {
-    return <Login />;
   }
   
   const renderView = () => {

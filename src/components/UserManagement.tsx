@@ -8,6 +8,38 @@ interface UserManagementProps {
   userProfile: UserProfile | null;
 }
 
+// Helper: create user via Edge Function
+async function createUserViaEdge(
+  email: string,
+  password: string,
+  fullName: string,
+  role: string,
+  companyId?: string | null
+): Promise<any> {
+  // Get current session token
+  const { data: sessionData } = await (supabase as any).auth.getSession()
+  const token = sessionData?.session?.access_token ?? null
+
+  const base = (import.meta.env as any).VITE_SUPABASE_FUNCTIONS_URL || ''
+  const url = `${base.replace(/\\$/, '')}/create_user`
+  const payload = { email, password, full_name: fullName, role, company_id: companyId ?? null }
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(payload)
+  })
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}))
+    throw new Error(err?.error ?? `Edge function error: ${resp.status}`)
+  }
+  return await resp.json()
+}
+
 export default function UserManagement({ userProfile }: UserManagementProps) {
   const [drivers, setDrivers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +53,20 @@ export default function UserManagement({ userProfile }: UserManagementProps) {
 
 const isSuperAdmin = userProfile?.role === 'admin';
 const isCoordinator = userProfile?.role === 'coordinator';
+
+// Available roles according to caller's role
+const availableRoles = userProfile?.role === 'admin'
+  ? ['coordinator', 'conductor']
+  : userProfile?.role === 'coordinator'
+    ? ['conductor']
+    : []
+
+const [selectedRole, setSelectedRole] = useState<string>(availableRoles[0] ?? '')
+useEffect(() => {
+  if (availableRoles.length > 0 && (!selectedRole || !availableRoles.includes(selectedRole))) {
+    setSelectedRole(availableRoles[0])
+  }
+}, [availableRoles])
 
   useEffect(() => {
     if (isSuperAdmin || isCoordinator) {
@@ -93,22 +139,19 @@ const isCoordinator = userProfile?.role === 'coordinator';
         }
 
       } else {
-        // Create new user
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true, // Auto-confirm user
-        });
-
-        if (authError) throw authError;
-        if (!authData.user) throw new Error("Could not create user.");
+        // Create new user via Edge Function
+        const edgeRes = await createUserViaEdge(email, password, fullName, selectedRole, userProfile?.company_id ?? null)
+        if (edgeRes?.error) throw edgeRes.error
+        const newUserId = edgeRes?.user?.id
+        if (!newUserId) throw new Error("Could not create user.")
 
         const { error: profileError } = await supabase.from('profiles').insert({
-          id: authData.user.id,
+          id: newUserId,
           full_name: fullName,
-          role: 'CONDUCTOR',
-          company_id: userProfile?.company_id, // Assign coordinator's company
-        });
+          email,
+          role: selectedRole,
+          company_id: userProfile?.company_id,
+        })
 
         if (profileError) throw profileError;
       }

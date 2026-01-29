@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import type { Trip } from '../types'
 
 type HistoryPanelProps = {
-  userProfile: any // debe incluir role y company_id
+  userProfile: any // adaptalo a tu modelo; debe incluir role y company_id
 }
 
 type GPSPointDB = {
@@ -25,23 +25,21 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [points, setPoints] = useState<GPSPointDB[]>([])
-
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const tripLoadTimer = useRef<number | null>(null)
 
-  // Real-time: suscripción a gps_points usando Supabase v2
+  // Real-time: suscripción a gps_points usando Supabase v2 channel
   useEffect(() => {
-    // Cargar viajes
     fetchTrips()
 
-    // Suscripción a cambios en gps_points desde schema public
     const companyFilter = userProfile?.company_id
     const channel = supabase.channel('gps_points_updates')
     channel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'gps_points' },
         payload => {
-          const newPoint = (payload.new as GPSPointDB)
+          const newPoint = payload.new as GPSPointDB
           if (!newPoint) return
           if (companyFilter && newPoint.company_id !== companyFilter) return
           if (selectedTrip && selectedTrip.id === newPoint.trip_id) {
@@ -50,22 +48,32 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
         }
       )
       .subscribe()
-    return () => {
-      channel.unsubscribe()
-    }
-  // dependency: userProfile, selectedTrip.id
+
+return () => { channel.unsubscribe(); };  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, selectedTrip?.id])
 
-  // Abrir modal cuando haya trip seleccionado
+  // Abrir modal al seleccionar un viaje
   useEffect(() => {
     if (selectedTrip) {
+      console.log("Viaje seleccionado:", selectedTrip.id)
       setModalOpen(true)
-      loadPointsForTrip(selectedTrip.id)
       initMapIfNeeded()
+      // Debounce para evitar abortos/rct de conexión al cargar puntos
+      if (tripLoadTimer.current) window.clearTimeout(tripLoadTimer.current)
+      tripLoadTimer.current = window.setTimeout(() => loadPointsForTrip(selectedTrip.id), 500)
+    } else {
+      // limpiar timer si se deselecciona
+      if (tripLoadTimer.current) {
+        window.clearTimeout(tripLoadTimer.current)
+        tripLoadTimer.current = null
+      }
+    }
+    return () => {
+      if (tripLoadTimer.current) window.clearTimeout(tripLoadTimer.current)
     }
   }, [selectedTrip])
 
-  // Inicializar mapa
+  // Configurar mapa
   function initMapIfNeeded() {
     if (!mapContainerRef.current) return
     if (mapRef.current) return
@@ -88,17 +96,13 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
   function drawPathOnMap(pointsToPlot: GPSPointDB[]) {
     const map = mapRef.current
     if (!map) return
-    // Limpiar capas previas menos la base
-    map.eachLayer((layer) => {
-      if ((layer as any).predefined) {
-        map.removeLayer(layer)
-      }
+    map.eachLayer(l => {
+      if ((l as any).predefined) map.removeLayer(l)
     })
     if (pointsToPlot.length === 0) return
     const coords = pointsToPlot.map(p => [p.latitude, p.longitude] as [number, number])
     const polyline = L.polyline(coords, { color: 'red' }).addTo(map)
     map.fitBounds(polyline.getBounds())
-    // Etiquetas de velocidad
     pointsToPlot.forEach(p => {
       const marker = L.circleMarker([p.latitude, p.longitude], { radius: 3, color: 'blue' }).addTo(map)
       marker.bindTooltip(`Speed: ${p.speed} km/h`, { permanent: false, direction: 'top' })
@@ -151,7 +155,7 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
       <h2>Historial de Viajes</h2>
       <div className="trip-list">
         {trips.map(t => (
-          <div key={t.id} onClick={() => setSelectedTrip(t)} style={{ cursor: 'pointer', border: '1px solid #ccc', padding: '8px', margin: '6px 0' }}>
+          <div key={t.id} onClick={() => setSelectedTrip(t)} style={{ cursor: 'pointer', padding: '8px', border: '1px solid #ccc', margin: '6px 0' }}>
             <strong>Trip {t.id}</strong> - {t.start_time} - {t.status}
           </div>
         ))}
@@ -159,7 +163,8 @@ export default function HistoryPanel({ userProfile }: HistoryPanelProps) {
 
       {modalOpen && selectedTrip && (
         <Modal onClose={closeModal} title={`Trip ${selectedTrip.id} Details`}>
-          <div id={`map-${selectedTrip.id}`} style={{ height: 420, width: '100%' }} ref={mapContainerRef} />
+          {/* Mapa con altura explícita y z-index alto para Leaflet */}
+          <div id={`map-${selectedTrip.id}`} style={{ height: 400, width: '100%', zIndex: 9999 }} ref={mapContainerRef} />
           <div style={{ paddingTop: 8 }}>
             <strong>Points:</strong> {points.length}
           </div>

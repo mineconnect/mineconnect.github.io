@@ -49,13 +49,20 @@ export default function DriverSimulator({ user, onTripUpdate }: DriverSimulatorP
         setCurrentSpeed(speedKmh);
         addGPSLog(`📍 GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} | ${speedKmh} km/h`);
         // Persist GPS log with company context for multi-tenant isolation
-        await (async () => {
-          await supabase.from('trip_logs').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
-        })().catch((err) => {
-          // Do not break tracking on transient errors; log and continue
-          console.error('GPS insert error', err);
-          addGPSLog('⚠ GPS insert error, retrying later');
-        });
+        try {
+          await (async () => {
+            await (async () => {
+              await supabase.from('gps_points').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
+            })()
+          })()
+        } catch (err) {
+          console.error('GPS insert to gps_points failed, falling back to trip_logs', err)
+          try {
+            await supabase.from('trip_logs').insert({ trip_id: tripId, lat: latitude, lng: longitude, speed: speedKmh, company_id: user?.company_id ?? null });
+          } catch (e) {
+            addGPSLog('⚠ GPS insert fallback failed');
+          }
+        }
       },
       (err) => {
         const msg = err.code === 3 ? "Tiempo de espera agotado" : "Error de señal";

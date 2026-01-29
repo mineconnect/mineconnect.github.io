@@ -93,6 +93,13 @@ jobs:
         # Create CNAME at root of final-deploy (domain for Pages)
         echo "mineconnect.com.ar" > final-deploy/CNAME
 
+    - name: Deploy Edge Function to Supabase
+      if: ${{ secrets.SUPABASE_TOKEN != '' && secrets.SUPABASE_PROJECT_REF != '' }}
+      run: |
+        npm i -g supabase
+        supabase login -t ${{ secrets.SUPABASE_TOKEN }}
+        supabase functions deploy create_user --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify
+
         # Verify critical files exist
         echo "🔍 Verifying critical files:"
         ls -la final-deploy/sat/

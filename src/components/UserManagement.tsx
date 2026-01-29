@@ -49,9 +49,11 @@ export default function UserManagement({ userProfile }: UserManagementProps) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Admin: field to specify company id for new users
+  const [adminCompany, setAdminCompany] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-const isSuperAdmin = userProfile?.role === 'admin';
+  const isSuperAdmin = userProfile?.role === 'admin';
 const isCoordinator = userProfile?.role === 'coordinator';
 
 // Available roles according to caller's role
@@ -103,6 +105,7 @@ useEffect(() => {
     setEditingDriver(null);
     setIsFormOpen(false);
     setError(null);
+    setAdminCompany('');
   };
 
   const handleEdit = (driver: UserProfile) => {
@@ -122,6 +125,13 @@ useEffect(() => {
     setLoading(true);
     setError(null);
 
+    // Admin must specify company for Admin path
+    if (isSuperAdmin && adminCompany.trim() === '') {
+      setError('Por favor, ingresa la Empresa (Company ID).')
+      setLoading(false)
+      return
+    }
+
     try {
       if (editingDriver) {
         // Update existing user
@@ -140,11 +150,16 @@ useEffect(() => {
 
       } else {
         // Create nuevo usuario via Edge Function
-        const edgeRes = await createUserViaEdge(email, password, fullName, selectedRole, userProfile?.company_id ?? null)
+        let companyIdParam: string | null = null
+        if (isSuperAdmin) {
+          companyIdParam = adminCompany || null
+        } else if (isCoordinator) {
+          companyIdParam = userProfile?.company_id ?? null
+        }
+        const edgeRes = await createUserViaEdge(email, password, fullName, selectedRole, companyIdParam)
         if (edgeRes?.error) throw edgeRes.error
         const newUserId = edgeRes?.user?.id
         if (!newUserId) throw new Error("Could not create user.")
-
         // Se asume que la Edge Function ya inserta el perfil; solo validamos éxito.
       }
       
@@ -210,6 +225,12 @@ useEffect(() => {
               <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required disabled={!!editingDriver} className="p-2 rounded bg-slate-700 text-white border border-slate-600 disabled:opacity-50" />
             </div>
             <input type="password" placeholder={editingDriver ? 'Nueva Contraseña (opcional)' : 'Contraseña'} value={password} onChange={e => setPassword(e.target.value)} required={!editingDriver} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600" />
+            {isSuperAdmin && (
+              <div className="mt-2">
+                <label className="block text-sm text-white mb-1">Empresa (Company ID)</label>
+                <input type="text" placeholder="Company ID" value={adminCompany} onChange={e => setAdminCompany(e.target.value)} className="w-full p-2 rounded bg-slate-700 text-white border border-slate-600" />
+              </div>
+            )}
             
             {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -219,9 +240,7 @@ useEffect(() => {
             </div>
           </form>
         </motion.div>
-      )}
-
-      <div className="bg-slate-800 rounded-lg overflow-hidden">
+            )}
         {loading && <div className="p-4 text-center">Cargando...</div>}
         {!loading && drivers.length === 0 && <div className="p-4 text-center text-slate-400">No se encontraron conductores.</div>}
         {!loading && drivers.length > 0 && (

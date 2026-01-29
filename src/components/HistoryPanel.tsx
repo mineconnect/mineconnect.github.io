@@ -61,12 +61,13 @@ export default function HistoryPanel({ user }: HistoryPanelProps) {
     }
   }, [selectedTrip])
 
-  // Inicializar mapa con estilo dark
+  // Inicializar mapa con estilo dark y zoom optimizado
   function initMapIfNeeded() {
     if (!mapContainerRef.current) return
     if (mapRef.current) return
     
-    mapRef.current = L.map(mapContainerRef.current).setView([0, 0], 2)
+    // Iniciar con zoom 12 centrado en una ubicación por defecto (Buenos Aires)
+    mapRef.current = L.map(mapContainerRef.current).setView([-34.6037, -58.3816], 12)
     
     // Dark mode tile layer
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -128,11 +129,15 @@ export default function HistoryPanel({ user }: HistoryPanelProps) {
       }
     })
     
-    map.fitBounds(polyline.getBounds(), { padding: [50, 50] })
+    // Si hay puntos, ajustar el bounds, si no, mantener zoom 12
+    if (pointsToPlot.length > 0) {
+      map.fitBounds(polyline.getBounds(), { padding: [50, 50] })
+    }
   }
 
   async function fetchTrips() {
     let q = supabase.from('trips').select('*')
+    // Admin ve todos los viajes sin filtro de company_id
     if (user?.role !== 'admin') q = q.eq('company_id', user?.company_id)
     const { data, error } = await q.order('start_time', { ascending: false })
     if (error) {

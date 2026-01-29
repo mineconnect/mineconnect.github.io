@@ -91,37 +91,65 @@ function App() {
 
     return (
       <div className="relative min-h-screen overflow-hidden">
-        {/* Animated Earth Background */}
+        {/* Immersive Earth Orbit View */}
         <div className="absolute inset-0 bg-black">
-          <div 
-            className="absolute inset-0 opacity-80"
-            style={{
-              backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=2000&h=2000&fit=crop')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              animation: 'orbit 60s linear infinite'
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-900/20 to-black/50" />
+          {/* Deep Space Background */}
+          <div className="absolute inset-0">
+            <div className="absolute inset-0 bg-gradient-to-b from-black via-slate-900 to-blue-950" />
+            
+            {/* Stars */}
+            <div className="absolute inset-0 opacity-60">
+              <div className="stars-layer-1" />
+              <div className="stars-layer-2" />
+            </div>
+            
+            {/* Earth with Atmosphere */}
+            <div 
+              className="absolute inset-0 earth-orbit-view"
+              style={{
+                backgroundImage: `url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=3000&h=2000&fit=crop')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center bottom',
+                animation: 'pan-slow 120s ease-in-out infinite'
+              }}
+            />
+            
+            {/* Atmosphere Glow */}
+            <div className="absolute inset-0">
+              <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 via-blue-400/5 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-blue-600/20" />
+            </div>
+            
+            {/* Lens Flare Effects */}
+            <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-blue-400 rounded-full filter blur-3xl opacity-20 animate-pulse" />
+            <div className="absolute bottom-1/3 left-1/3 w-24 h-24 bg-cyan-300 rounded-full filter blur-2xl opacity-15 animate-pulse" />
+          </div>
         </div>
 
-        {/* Login Box with Glassmorphism */}
+        {/* Login Box with Extreme Glassmorphism */}
         <div className="relative z-10 min-h-screen flex items-center justify-center px-4">
           <div className="w-full max-w-md">
-            {/* Logo and Title */}
+            {/* Floating Satellite */}
             <div className="text-center mb-8">
-              <div className="flex justify-center mb-4">
-                <Satellite className="w-16 h-16 text-blue-400" />
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <Satellite className="w-20 h-20 text-blue-400 relative z-10 animate-bounce" style={{ animationDuration: '3s' }} />
+                  <div className="absolute inset-0 bg-blue-400 rounded-full filter blur-2xl opacity-30 animate-pulse" />
+                </div>
               </div>
-              <h1 className="text-4xl font-bold text-white mb-2">MineConnect SAT Pro</h1>
-              <p className="text-blue-200 text-sm">Monitoreo Satelital Profesional</p>
+              <h1 className="text-5xl font-bold text-white mb-3 tracking-tight">MineConnect</h1>
+              <div className="text-2xl font-light text-blue-200 mb-2">SAT PRO</div>
+              <div className="flex items-center justify-center space-x-2 text-blue-300/60 text-sm">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span>Monitoreo Satelital Activo</span>
+              </div>
             </div>
 
-            {/* Glassmorphism Container */}
+            {/* Extreme Glassmorphism Container */}
             <div 
-              className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-8 shadow-2xl"
+              className="backdrop-blur-2xl bg-white/5 rounded-3xl p-8 border border-white/10 shadow-2xl"
               style={{
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                boxShadow: '0 40px 80px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 0 20px rgba(255, 255, 255, 0.03)'
               }}
             >
               <form onSubmit={login} className="space-y-6">
@@ -178,9 +206,47 @@ function App() {
         </div>
 
         <style>{`
-          @keyframes orbit {
-            from { transform: scale(1.2) rotate(0deg); }
-            to { transform: scale(1.2) rotate(360deg); }
+          @keyframes pan-slow {
+            0%, 100% { 
+              transform: scale(1.3) translateX(-5%) translateY(0); 
+            }
+            25% { 
+              transform: scale(1.3) translateX(0) translateY(-2%); 
+            }
+            50% { 
+              transform: scale(1.3) translateX(5%) translateY(0); 
+            }
+            75% { 
+              transform: scale(1.3) translateX(0) translateY(2%); 
+            }
+          }
+          
+          .stars-layer-1 {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(2px 2px at 20px 30px, white, transparent),
+                              radial-gradient(2px 2px at 40px 70px, white, transparent),
+                              radial-gradient(1px 1px at 50px 50px, white, transparent),
+                              radial-gradient(1px 1px at 80px 10px, white, transparent),
+                              radial-gradient(2px 2px at 130px 80px, white, transparent);
+            background-size: 200px 200px;
+            animation: drift 100s linear infinite;
+          }
+          
+          .stars-layer-2 {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(1px 1px at 10px 10px, white, transparent),
+                              radial-gradient(1px 1px at 150px 150px, white, transparent),
+                              radial-gradient(2px 2px at 60px 170px, white, transparent),
+                              radial-gradient(1px 1px at 175px 20px, white, transparent);
+            background-size: 250px 250px;
+            animation: drift 150s linear infinite reverse;
+          }
+          
+          @keyframes drift {
+            from { transform: translateX(0); }
+            to { transform: translateX(-200px); }
           }
         `}</style>
       </div>

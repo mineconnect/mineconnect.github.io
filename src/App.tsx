@@ -91,10 +91,10 @@ function App() {
   loop 
   muted 
   playsInline
-  poster="/assets/earth-8k-blue-marble.jpg" 
+   poster="assets/earth-8k-blue-marble.jpg"
   className="absolute top-0 left-0 w-full h-full object-cover -z-20"
 >
-  <source src="/assets/video-login.mp4" type="video/mp4" />
+   <source src="assets/video-login.mp4" type="video/mp4" />
 </video>
 
          {/* Capa de oscurecimiento para contraste */}

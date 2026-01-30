@@ -85,16 +85,17 @@ function App() {
 
      return (
        <div className="relative w-full h-screen bg-black overflow-hidden" aria-label="Auth Background">
-         {/* Video de fondo dinámico */}
-         <video 
-           autoPlay 
-           loop 
-           muted 
-           playsInline
-           className="absolute top-0 left-0 w-full h-full object-cover -z-20"
-         >
-           <source src="/assets/video-login.mp4" type="video/mp4" />
-         </video>
+         {/* Video de fondo dinámico con Poster de respaldo */}
+<video 
+  autoPlay 
+  loop 
+  muted 
+  playsInline
+  poster="assets/earth-8k-blue-marble.jpg" 
+  className="absolute top-0 left-0 w-full h-full object-cover -z-20"
+>
+  <source src="assets/video-login.mp4" type="video/mp4" />
+</video>
 
          {/* Capa de oscurecimiento para contraste */}
          <div className="absolute inset-0 bg-black/50 -z-10"></div>

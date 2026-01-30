@@ -91,9 +91,11 @@ function App() {
   loop 
   muted 
   playsInline
+  // Quitamos la "/" inicial y agregamos la imagen de respaldo
   poster="assets/earth-8k-blue-marble.jpg" 
   className="absolute top-0 left-0 w-full h-full object-cover -z-20"
 >
+  // Quitamos la "/" inicial aquí también
   <source src="assets/video-login.mp4" type="video/mp4" />
 </video>
 

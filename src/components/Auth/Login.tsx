@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export default function Login() {
     const { signIn } = useAuth();
@@ -14,14 +15,35 @@ export default function Login() {
         setError(null);
         setLoading(true);
 
-        const { error } = await signIn(email, password);
+        const cleanEmail = email.trim();
+        const cleanPassword = password.trim();
+
+        // --- DIAGNÓSTICO DE EMERGENCIA PARA SOPORTE ---
+        // (Bloque de debug eliminado por políticas de seguridad)
+
+        // 1. Limpieza de sesión forzada antes de intentar nada
+        await supabase.auth.signOut();
+
+        // 2. Intento de Login
+        const { error } = await signIn(cleanEmail, cleanPassword);
 
         if (error) {
-            console.error('Login error:', error);
-            setError('Credenciales inválidas. Por favor intente nuevamente.');
+            console.error('❌ Error CRÍTICO en Login:', error);
+            // if (email === 'fbarrosmarengo@gmail.com') {
+            //     console.error('Detalles del error:', JSON.stringify(error, null, 2));
+            //     console.groupEnd();
+            // }
+
+            // Mensaje más descriptivo si es posible
+            let errorMessage = 'Credenciales inválidas. Por favor intente nuevamente.';
+            if (error.message.includes('Email not confirmed')) errorMessage = 'El email no ha sido confirmado aún.';
+            if (error.message.includes('Invalid login credentials')) errorMessage = 'Email o contraseña incorrectos.';
+
+            setError(errorMessage);
             setLoading(false);
+        } else {
+            // Login exitoso
         }
-        // If successful, onAuthStateChange in AuthContext will handle the redirect/state update logic effectively
     };
 
     return (
